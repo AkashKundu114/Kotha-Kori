@@ -1,0 +1,50 @@
+import httpx
+from shared.config.settings import get_settings
+
+WA_API = "https://graph.facebook.com/v18.0/{phone_id}/messages"
+
+async def send_text(to: str, body: str) -> dict:
+    s = get_settings()
+    async with httpx.AsyncClient() as client:
+        r = await client.post(
+            WA_API.format(phone_id=s.wa_phone_number_id),
+            headers={"Authorization": f"Bearer {s.wa_access_token}"},
+            json={
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": to,
+                "type": "text",
+                "text": {"body": body, "preview_url": False},
+            },
+        )
+    return r.json()
+
+async def send_document(to: str, url: str, filename: str, caption: str = "") -> dict:
+    s = get_settings()
+    async with httpx.AsyncClient() as client:
+        r = await client.post(
+            WA_API.format(phone_id=s.wa_phone_number_id),
+            headers={"Authorization": f"Bearer {s.wa_access_token}"},
+            json={
+                "messaging_product": "whatsapp",
+                "to": to,
+                "type": "document",
+                "document": {"link": url, "filename": filename, "caption": caption},
+            },
+        )
+    return r.json()
+
+async def send_image(to: str, url: str, caption: str = "") -> dict:
+    s = get_settings()
+    async with httpx.AsyncClient() as client:
+        r = await client.post(
+            WA_API.format(phone_id=s.wa_phone_number_id),
+            headers={"Authorization": f"Bearer {s.wa_access_token}"},
+            json={
+                "messaging_product": "whatsapp",
+                "to": to,
+                "type": "image",
+                "image": {"link": url, "caption": caption},
+            },
+        )
+    return r.json()

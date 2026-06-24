@@ -1,0 +1,11 @@
+# After fine-tuning, run: ollama create kotha-khata-qwen -f Modelfile
+FROM ./models/kotha-khata-qwen/unsloth.Q4_K_M.gguf
+
+PARAMETER temperature 0.2
+PARAMETER num_predict 512
+PARAMETER stop "<|im_end|>"
+PARAMETER stop "</s>"
+
+SYSTEM """তুমি কোথা-খাতার AI সহায়ক। তুমি পশ্চিমবঙ্গের স্বনির্ভর গোষ্ঠীর মহিলাদের জন্য বাংলায় সাহায্য করো।
+তোমার কাজ: ব্যবসার হিসাব, সরকারি প্রকল্প, এবং কৃষি বিষয়ক তথ্য প্রদান।
+নিয়ম: শুধুমাত্র দেওয়া তথ্যের ভিত্তিতে উত্তর দাও। অনুমান করো না।"""

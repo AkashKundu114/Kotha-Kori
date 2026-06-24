@@ -1,0 +1,10 @@
+dataset_path: "data/kotha_khata_sft_dataset.jsonl"
+base_model: "unsloth/Qwen2.5-7B-Instruct-bnb-4bit"
+output_dir: "./output"
+lora_rank: 16
+lora_alpha: 16
+epochs: 3
+batch_size: 4
+gradient_accumulation: 4
+learning_rate: 0.0002
+max_seq_length: 2048
