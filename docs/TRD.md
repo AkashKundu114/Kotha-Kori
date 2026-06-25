@@ -18,23 +18,23 @@ Kotha-Khata is a **serverless-first, event-driven WhatsApp AI platform** with fo
 │                    USER (WhatsApp)                           │
 └───────────────────────┬──────────────────────────────────────┘
                         │ HTTPS Webhook (WhatsApp Cloud API)
-┌───────────────────────▼──────────────────────────────────────┐
-│               GATEWAY LAYER                                  │
-│  ┌─────────────────┐  ┌────────────────┐  ┌──────────────┐  │
-│  │  Webhook Router │  │ Session Manager│  │ Rate Limiter │  │
-│  │  (FastAPI)      │  │ (Redis)        │  │ (Redis/Upstash│  │
-│  └────────┬────────┘  └────────────────┘  └──────────────┘  │
-└───────────┼──────────────────────────────────────────────────┘
+┌───────────────────────▼───────────────────────────────────────┐
+│               GATEWAY LAYER                                   │
+│  ┌─────────────────┐  ┌────────────────┐  ┌────────────────┐  │
+│  │  Webhook Router │  │ Session Manager│  │ Rate Limiter   │  │
+│  │  (FastAPI)      │  │ (Redis)        │  │ (Redis/Upstash)│  │
+│  └────────┬────────┘  └────────────────┘  └────────────────┘  │
+└───────────┼───────────────────────────────────────────────────┘
             │ Async Task Queue (Celery + Redis)
 ┌───────────▼──────────────────────────────────────────────────┐
 │               AI PROCESSING LAYER                            │
 │                                                              │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌────────────┐   │
-│  │  STT     │  │  NLU /   │  │  Vision  │  │  RAG       │   │
-│  │  Service │  │ Intent   │  │  Service │  │  Engine    │   │
-│  │(Bhashini │  │ Classify │  │(GPT-4V / │  │(LlamaIndex │   │
-│  │ Whisper) │  │(Claude)  │  │ Gemini)  │  │ + PGVector)│   │
-│  └──────────┘  └──────────┘  └──────────┘  └────────────┘   │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌────────────┐    │
+│  │  STT     │  │  NLU /   │  │  Vision  │  │  RAG       │    │
+│  │  Service │  │ Intent   │  │  Service │  │  Engine    │    │
+│  │(Bhashini │  │ Classify │  │(GPT-4V / │  │(LlamaIndex │    │
+│  │ Whisper) │  │(Claude)  │  │ Gemini)  │  │ + PGVector)│    │
+│  └──────────┘  └──────────┘  └──────────┘  └────────────┘    │
 │                                                              │
 │  ┌──────────┐  ┌──────────┐  ┌────────────────────────────┐  │
 │  │  TTS     │  │ Entity   │  │  Response Orchestrator     │  │
@@ -46,28 +46,28 @@ Kotha-Khata is a **serverless-first, event-driven WhatsApp AI platform** with fo
 ┌──────────────────────────────▼───────────────────────────────┐
 │                    DATA LAYER                                │
 │                                                              │
-│  ┌─────────────┐  ┌──────────────┐  ┌──────────────────┐    │
-│  │ PostgreSQL  │  │  pgvector    │  │  Redis           │    │
-│  │ (User data, │  │  (RAG        │  │  (Sessions,      │    │
-│  │  Ledgers,   │  │  embeddings) │  │  Rate limits,    │    │
-│  │  Groups)    │  │              │  │  Cache)          │    │
-│  └─────────────┘  └──────────────┘  └──────────────────┘    │
+│  ┌─────────────┐  ┌──────────────┐  ┌──────────────────┐     │
+│  │ PostgreSQL  │  │  pgvector    │  │  Redis           │     │
+│  │ (User data, │  │  (RAG        │  │  (Sessions,      │     │
+│  │  Ledgers,   │  │  embeddings) │  │  Rate limits,    │     │
+│  │  Groups)    │  │              │  │  Cache)          │     │
+│  └─────────────┘  └──────────────┘  └──────────────────┘     │
 │                                                              │
-│  ┌─────────────┐  ┌──────────────┐                          │
-│  │  S3 / GCS   │  │  TimescaleDB │                          │
-│  │  (PDFs,     │  │  (Market     │                          │
-│  │  Audio,     │  │  price time  │                          │
-│  │  Images)    │  │  series)     │                          │
-│  └─────────────┘  └──────────────┘                          │
+│  ┌─────────────┐  ┌──────────────┐                           │
+│  │  S3 / GCS   │  │  TimescaleDB │                           │
+│  │  (PDFs,     │  │  (Market     │                           │
+│  │  Audio,     │  │  price time  │                           │
+│  │  Images)    │  │  series)     │                           │
+│  └─────────────┘  └──────────────┘                           │
 └──────────────────────────────┬───────────────────────────────┘
                                │
 ┌──────────────────────────────▼───────────────────────────────┐
 │                  DELIVERY LAYER                              │
-│  ┌─────────────────┐  ┌──────────────┐  ┌────────────────┐  │
-│  │  PDF Generator  │  │ Image Proc.  │  │ WhatsApp Cloud │  │
-│  │  (WeasyPrint /  │  │ (Pillow/     │  │ API Sender     │  │
-│  │  ReportLab)     │  │ rembg)       │  │                │  │
-│  └─────────────────┘  └──────────────┘  └────────────────┘  │
+│  ┌─────────────────┐  ┌──────────────┐  ┌────────────────┐   │
+│  │  PDF Generator  │  │ Image Proc.  │  │ WhatsApp Cloud │   │
+│  │  (WeasyPrint /  │  │ (Pillow/     │  │ API Sender     │   │
+│  │  ReportLab)     │  │ rembg)       │  │                │   │
+│  └─────────────────┘  └──────────────┘  └────────────────┘   │
 └──────────────────────────────────────────────────────────────┘
 ```
 
