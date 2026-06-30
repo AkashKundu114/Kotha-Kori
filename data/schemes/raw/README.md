@@ -1,11 +1,9 @@
 # Government Scheme PDFs
 
-Place official West Bengal government scheme PDFs here.
+Place official West Bengal government scheme PDFs here, then run `make seed-schemes`.
+Unchanged from v1 — this part of the plan didn't need fixing.
 
-Sources:
-- https://wb.gov.in (search for scheme names)
-- https://anandadhara.wb.gov.in
-- https://wbfin.nic.in
+Sources: wb.gov.in, anandadhara.wb.gov.in, wbfin.nic.in
 
 Schemes to include at launch:
 - [ ] Lakshmir Bhandar guidelines
@@ -16,5 +14,3 @@ Schemes to include at launch:
 - [ ] JAAGO scheme guidelines
 - [ ] Kanyashree guidelines
 - [ ] Rupashree guidelines
-
-After placing PDFs here, run: make seed-schemes

@@ -1,0 +1,92 @@
+{
+  "version": "6.0",
+  "screens": [
+    {
+      "id": "SCHEME_SELECT",
+      "title": "প্রকল্প বাছুন",
+      "data": {},
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "RadioButtonsGroup",
+            "name": "scheme_name",
+            "label": "কোন প্রকল্প সম্পর্কে জানতে চান?",
+            "required": true,
+            "data-source": [
+              {"id": "lakshmir_bhandar", "title": "লক্ষ্মীর ভান্ডার"},
+              {"id": "anandadhara", "title": "আনন্দধারা"},
+              {"id": "svskp", "title": "SVSKP"},
+              {"id": "krishak_bandhu", "title": "কৃষক বন্ধু"},
+              {"id": "wbssp", "title": "WBSSP"},
+              {"id": "jaago", "title": "JAAGO"},
+              {"id": "kanyashree", "title": "কন্যাশ্রী"},
+              {"id": "rupashree", "title": "রূপশ্রী"}
+            ]
+          },
+          {
+            "type": "Footer",
+            "label": "পরবর্তী",
+            "on-click-action": {
+              "name": "navigate",
+              "next": {"type": "screen", "name": "ELIGIBILITY_DETAILS"},
+              "payload": {"scheme_name": "${form.scheme_name}"}
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "ELIGIBILITY_DETAILS",
+      "title": "কয়েকটি তথ্য দিন",
+      "data": {
+        "scheme_name": {"type": "string", "__example__": "lakshmir_bhandar"}
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextInput",
+            "name": "age",
+            "label": "আপনার বয়স",
+            "input-type": "number",
+            "required": true
+          },
+          {
+            "type": "RadioButtonsGroup",
+            "name": "has_swasthya_sathi",
+            "label": "স্বাস্থ্য সাথী কার্ড আছে?",
+            "required": true,
+            "data-source": [
+              {"id": "yes", "title": "হ্যাঁ"},
+              {"id": "no", "title": "না"}
+            ]
+          },
+          {
+            "type": "RadioButtonsGroup",
+            "name": "is_govt_employee",
+            "label": "সরকারি চাকরিজীবী বা আয়কর দাতা?",
+            "required": true,
+            "data-source": [
+              {"id": "yes", "title": "হ্যাঁ"},
+              {"id": "no", "title": "না"}
+            ]
+          },
+          {
+            "type": "Footer",
+            "label": "জমা দিন",
+            "on-click-action": {
+              "name": "complete",
+              "payload": {
+                "scheme_name": "${data.scheme_name}",
+                "age": "${form.age}",
+                "has_swasthya_sathi": "${form.has_swasthya_sathi}",
+                "is_govt_employee": "${form.is_govt_employee}"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

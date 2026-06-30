@@ -1,6 +1,7 @@
 from pydantic_settings import BaseSettings
 from functools import lru_cache
 
+
 class Settings(BaseSettings):
     # WhatsApp
     wa_phone_number_id: str
@@ -15,23 +16,27 @@ class Settings(BaseSettings):
     s3_bucket: str = "kotha-khata-assets"
     aws_region: str = "ap-south-1"
 
-    # ── Zero-Cost LLM Stack ──────────────────────────────────────
-    ollama_base_url: str = "http://ollama:11434"
-    # Fine-tuned Qwen2.5-7B served via Ollama
-    ollama_llm_model: str = "kotha-khata-qwen:latest"
-    # Fine-tuned Qwen2-VL-7B for vision
-    ollama_vision_model: str = "kotha-khata-vision:latest"
-    # nomic-embed-text (multilingual, Bengali support)
-    ollama_embedding_model: str = "nomic-embed-text"
-
-    # STT
+    # ── Voice cascade (tier 1: Sarvam, tier 2: Bhashini, tier 3: self-hosted) ──
+    sarvam_api_key: str = ""
+    sarvam_monthly_budget_inr: int = 15000  # cost-control valve; see voice_gateway
+    bhashini_user_id: str = ""
+    bhashini_api_key: str = ""
     whisper_model_path: str = "./models/bengali-large-v3"
     whisper_device: str = "cuda"
     whisper_compute_type: str = "float16"
 
-    # Optional external fallbacks
-    bhashini_user_id: str = ""
-    bhashini_api_key: str = ""
+    # ── LLM cascade ──────────────────────────────────────────────────
+    anthropic_api_key: str = ""
+    ollama_base_url: str = "http://ollama:11434"
+    ollama_llm_model: str = "kotha-khata-qwen:latest"
+    ollama_vision_model: str = "kotha-khata-vision:latest"
+    ollama_embedding_model: str = "nomic-embed-text"
+    routine_confidence_floor: float = 0.80
+
+    # ── Observability ────────────────────────────────────────────────
+    langfuse_public_key: str = ""
+    langfuse_secret_key: str = ""
+    langfuse_host: str = "http://langfuse:3000"
 
     # App
     debug: bool = False
@@ -40,6 +45,7 @@ class Settings(BaseSettings):
 
     class Config:
         env_file = ".env"
+
 
 @lru_cache()
 def get_settings() -> Settings:

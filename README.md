@@ -1,82 +1,73 @@
-# Kotha-Kori (কথা-কড়ি)
+# Kotha-Khata v2 (কথা-খাতা)
 ### Voice-Ledger & Growth Assistant for West Bengal SHG Women
 
-A voice-first WhatsApp AI platform that turns spoken Bengali into structured financial records,
-government scheme eligibility assessments, product marketing assets, and group governance documents.
-No app download. No literacy required. Works on 2G.
+A WhatsApp-native AI agent that turns spoken Bengali into structured financial
+records, hallucination-checked government scheme guidance, and group governance
+documents — no app download, no literacy required.
 
----
+**This is a re-architected v2 of the original plan.** If you're new to the project,
+read `docs/ARCHITECTURE.md` first — it explains exactly what changed from the
+original PRD/TRD/Roadmap and why, with the supporting research in
+`docs/research/agent_frameworks.md`.
+
+## What's different from a typical "voice bot + RAG" project
+
+| Layer | Approach |
+|---|---|
+| Conversation orchestration | **LangGraph** state machine, Postgres-checkpointed — not a keyword router + scattered Celery tasks |
+| Voice (STT/TTS) | **3-tier cascade**: Sarvam AI → Bhashini → self-hosted fine-tuned Whisper |
+| Structured input (onboarding, eligibility) | **WhatsApp Flows** — native forms, no LLM round-trip needed |
+| LLM usage | **Cascaded by task criticality**: Claude for safety-critical scheme answers, self-hosted Qwen for routine extraction, auto-escalation on low confidence |
+| RAG hallucination prevention | Real **two-pass grounding verifier** (assertion extraction + context check), not a hardcoded `True` |
+| Retrieval | **Hybrid**: Postgres full-text search + pgvector, fused via reciprocal rank fusion |
+| Observability | **Langfuse**, self-hosted, traces every node and model call |
 
 ## Quick Start
 
 ```bash
-# 1. Clone and configure
-git clone https://github.com/your-org/kotha-khata.git
-cd kotha-khata
-cp .env.example .env
-# → Fill in WA_PHONE_NUMBER_ID, WA_ACCESS_TOKEN, DATABASE_URL
-
-# 2. Start infrastructure
-docker compose up -d postgres redis ollama
-
-# 3. Pull zero-cost AI models (one-time, ~10GB)
-make pull-models
-
-# 4. Run DB migrations
-make migrate
-
-# 5. Seed government scheme data
-make seed-schemes
-
-# 6. Start all services
-make dev
+git clone <this-repo>
+cd kotha-khata-v2
+cp .env.example .env          # fill in WA_*, SARVAM_API_KEY, ANTHROPIC_API_KEY, etc.
+make setup                    # infra + migrations + hybrid search index
+make pull-models               # self-hosted fallback tier models
+make seed-schemes              # ingest government scheme PDFs (see data/schemes/raw/)
+make dev                       # docker compose up --build
 ```
 
-## Architecture
+Open `http://localhost:3000` for the Langfuse trace dashboard once a few
+messages have flowed through.
+
+## Repository Map
 
 ```
-WhatsApp → Gateway (FastAPI) → Celery Queue
-                                    ↓
-                         ┌──────────┴──────────┐
-                    STT Service          AI Worker
-                  (faster-whisper)    (Qwen2.5-7B)
-                         │                  │
-                    PostgreSQL + pgvector + Redis
+services/
+  gateway/            FastAPI webhook — verifies Meta signature, transcribes if
+                       needed, hands off to the orchestrator. No business logic.
+  orchestrator/        <-- START HERE. The LangGraph brain.
+    graph.py            the StateGraph wiring (single source of truth for what
+                         features exist and how they connect)
+    state.py             typed conversation state
+    model_router.py      Claude vs self-hosted Qwen cascade
+    nodes/                one file per feature node
+  voice_gateway/        3-tier STT cascade + providers/{sarvam,bhashini,whisper_local}
+  rag_service/          hybrid retrieval + the grounding verifier
+  pdf_service/          unchanged from v1 — WeasyPrint report generation
+shared/
+  config/settings.py    all environment configuration
+  whatsapp/             Meta API client (sender, parser, media download)
+  observability/        Langfuse tracing wrapper
+docs/
+  ARCHITECTURE.md       <-- READ THIS SECOND, after this README
+  research/              the 2026 research backing each architecture decision
+  PRD.md / TRD.md / ROADMAP.md / APP_FLOW.md   (carried over from v1 — the
+                         product vision, personas, and feature specs are still
+                         valid; only the technical implementation changed)
+tests/
+  unit/test_grounding_verifier.py   a good first PR: extend this
+migrations/
+  0002_hybrid_search.sql            the FTS index v1's schema never actually got
 ```
-
-**Zero-Cost AI Stack:**
-- 🎙️ STT: fine-tuned `whisper-large-v3` (faster-whisper, self-hosted)
-- 🧠 LLM: fine-tuned `Qwen2.5-7B-Instruct` via Ollama (self-hosted)
-- 👁️ Vision: `Qwen2-VL-7B` + `EfficientNet-B4` (self-hosted)
-- 📐 Embeddings: `nomic-embed-text` via Ollama (self-hosted)
-- 📄 PDF: WeasyPrint (local)
-- 🗃️ Vector DB: pgvector (PostgreSQL extension, no extra service)
-
-**External APIs used:** WhatsApp Cloud API (Meta) only.
-
-## Documentation
-
-| Document | Description |
-|----------|-------------|
-| [PRD](docs/PRD.md) | Product requirements, user personas, feature specs |
-| [TRD](docs/TRD.md) | Architecture, DB schema, API contracts, AI pipelines |
-| [ROADMAP](docs/ROADMAP.md) | 18-month phased roadmap |
-| [IMPLEMENTATION_PLAN](docs/IMPLEMENTATION_PLAN.md) | Sprint plan + working code |
-| [APP_FLOW](docs/APP_FLOW.md) | All conversation flows + state machines |
-| [ZERO_COST_LLM_GUIDE](ZERO_COST_LLM_GUIDE.md) | Full self-hosted AI guide |
-
-## Features
-
-| # | Feature | Status |
-|---|---------|--------|
-| 1 | 🎙️ Voice-Ledger (Bengali transaction recording) | MVP |
-| 2 | 📋 Government Scheme RAG (hallucination-free) | MVP |
-| 3 | 📸 WhatsApp Catalog Creator | MVP+ |
-| 4 | 🌾 Agri-Doc & Livestock Diagnostic | MVP+ |
-| 5 | 🔔 Subsidy & Loan Matchmaker (proactive) | MVP+ |
-| 6 | 🎓 Micro-Skill Audio Training | Phase 2 |
-| 7 | 📝 Meeting Minutes & Group Governance | MVP+ |
-| 8 | 📊 Market Price & Demand Predictor | Phase 3 |
 
 ## License
-MIT
+AGPLv3 (carried over from v1 — appropriate for a publicly-funded social-impact
+network service; see `LICENSE`).

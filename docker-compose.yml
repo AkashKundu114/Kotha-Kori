@@ -24,7 +24,7 @@ services:
       - "6379:6379"
     command: redis-server --appendonly yes
 
-  # ── Zero-Cost LLM: Ollama ───────────────────────────────────────
+  # ── Tier-3 fallback LLM + embeddings (self-hosted, see ARCHITECTURE.md) ──
   ollama:
     image: ollama/ollama:latest
     volumes:
@@ -39,6 +39,20 @@ services:
               count: 1
               capabilities: [gpu]
 
+  # ── Observability (NEW in v2 — see ARCHITECTURE.md #6) ─────────────
+  langfuse:
+    image: langfuse/langfuse:2
+    environment:
+      DATABASE_URL: postgresql://kothkori:${POSTGRES_PASSWORD}@postgres:5432/kothkori
+      NEXTAUTH_SECRET: ${LANGFUSE_NEXTAUTH_SECRET}
+      NEXTAUTH_URL: http://localhost:3000
+      SALT: ${LANGFUSE_SALT}
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   # ── Application Services ────────────────────────────────────────
   gateway:
     build: ./services/gateway
@@ -52,9 +66,12 @@ services:
         condition: service_started
     restart: unless-stopped
 
-  ai-worker:
-    build: ./services/ai-worker
+  orchestrator-worker:
+    build:
+      context: .
+      dockerfile: services/orchestrator/Dockerfile
     env_file: .env
+    command: celery -A services.orchestrator.celery_entrypoint worker --loglevel=info -Q celery
     depends_on:
       - redis
       - postgres
@@ -63,10 +80,10 @@ services:
       replicas: 3
     restart: unless-stopped
 
-  stt-service:
+  voice-gateway:
     build:
-      context: ./services/stt-service
-      dockerfile: Dockerfile.gpu
+      context: .
+      dockerfile: services/voice_gateway/Dockerfile.gpu
     env_file: .env
     volumes:
       - ./ml/whisper-finetune/models:/models:ro
@@ -80,18 +97,10 @@ services:
     restart: unless-stopped
 
   pdf-service:
-    build: ./services/pdf-service
+    build: ./services/pdf_service
     env_file: .env
     depends_on:
       - postgres
-    restart: unless-stopped
-
-  notification-service:
-    build: ./services/notification-service
-    env_file: .env
-    depends_on:
-      - postgres
-      - redis
     restart: unless-stopped
 
 volumes:

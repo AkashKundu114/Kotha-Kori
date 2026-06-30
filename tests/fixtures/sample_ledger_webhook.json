@@ -1,0 +1,22 @@
+{
+  "_comment": "Sample WhatsApp Cloud API webhook payload for local testing. POST this to http://localhost:8000/webhook/whatsapp (with a valid X-Hub-Signature-256 header computed against WA_WEBHOOK_VERIFY_TOKEN, or temporarily relax the signature check in main.py while developing locally).",
+  "entry": [
+    {
+      "changes": [
+        {
+          "value": {
+            "messages": [
+              {
+                "id": "wamid.TEST123",
+                "from": "919876543210",
+                "timestamp": "1735689600",
+                "type": "text",
+                "text": { "body": "আজ ৩০০ টাকা পাপড় বিক্রি করেছি, ১০০ টাকা মশলা কিনেছি" }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
