@@ -92,6 +92,10 @@ Retrieval itself moves from vector-only to **hybrid**: Postgres full-text search
 reciprocal rank fusion — this was *described* in the original TRD's pipeline diagram
 but never actually implemented in `pipeline.py`; v2 implements it.
 
+> **Update (Week 1, see §7.1 below):** the v2.0 grounding check above had its own
+> gap — it concatenated all chunks before checking grounding, so a number from the
+> *wrong* scheme's chunk could still pass as "grounded." This is now fixed.
+
 ## 6. Observability: none → Langfuse from day one
 
 **v1 problem:** No tracing of LLM calls, retrieval quality, or conversation flow
@@ -112,3 +116,70 @@ of guessed-at from logs.
 - **FastAPI + Redis + Postgres core** — still the right stack for this team size.
 - **Domain-locked, hallucination-guarded scheme RAG as the trust anchor** — the
   core product insight from the PRD is unchanged, only how it's enforced.
+
+---
+
+## 7. Addendum — Week 1 intern findings (grounding verifier hardening + dead-code audit)
+
+This section is appended, not a rewrite — see §1–6 above for the original
+v1→v2 decisions. Append further dated entries here rather than editing history above.
+
+### 7.1 Grounding verifier: per-chunk + scheme-aware checking
+
+`services/rag_service/grounding_verifier.py` (§5 above) originally concatenated
+every retrieved chunk into a single string before checking whether an
+assertion's surface text appeared in it. That allows a **citation-shaped
+hallucination**: if Scheme A's real chunk says ₹1000 and a *different*
+retrieved chunk (for Scheme B) happens to mention ₹2500, a generation that
+claims "Scheme A gives ₹2500" was marked `all_grounded: True` — ₹2500 *is*
+present in the combined context, just attached to the wrong scheme. This is
+exactly the gap flagged in `docs/INTERNSHIP_GUIDE.md`'s Day 4–5 task and in
+`docs/research/agent_frameworks.md`'s note on "citation-shaped hallucinations."
+
+**Fix:** grounding is now checked per-chunk, and whenever the answer names a
+scheme near an assertion (using a small Bengali/Latin alias table,
+`SCHEME_NAME_ALIASES`), that assertion must be found within a chunk
+belonging to *that specific* scheme. Assertions with no identifiable nearby
+scheme mention keep the old, more lenient behaviour (grounded if found
+anywhere in the retrieved set) so short, scheme-less answers don't start
+failing spuriously.
+
+Verified with a reproduction: feeding the old (pre-fix) logic the exact
+"Lakshmir Bhandar claims JAAGO's ₹2500" case returns `all_grounded: True`
+(the bug); the new logic correctly returns `False`. Nine tests now cover
+this in `tests/unit/test_grounding_verifier.py`, including a "swapped
+amounts across two schemes" case and a multi-scheme comparison answer that
+should still pass when correctly attributed.
+
+**Known limitation, left for a follow-up PR:** scheme-name detection is a
+fixed lookback-window alias match, not a real coreference/NER pass. A
+sentence structured so the scheme name appears *after* the amount
+("₹2500 আপনি লক্ষ্মীর ভান্ডার থেকে পাবেন") would not be caught by the
+current backward-only lookback. If this turns out to be a common generation
+pattern in practice (check via `scripts/audit_rag.py`'s weekly human audit),
+extend `_nearby_scheme` to look both directions within the sentence
+boundary, not just backward.
+
+### 7.2 Dead-code audit: pre-LangGraph v1 remnants still in the tree
+
+While tracing the message-handling path end to end (the Day 3 exercise), the
+following v1-era files/directories were found to be **unreferenced by
+anything in the current v2 wiring** (`docker-compose.yml`, the Dockerfiles,
+and `services/orchestrator/graph.py`/`celery_entrypoint.py`), and should be
+deleted rather than maintained going forward:
+
+| Path | Why it's dead |
+|---|---|
+| `services/gateway/router.py` | Superseded by `services/orchestrator/nodes/intent_router.py` per `graph.py`'s own docstring. Also **currently broken**: it does `from services.ai_worker import tasks` (underscore) but the only such package on disk is `services/ai-worker/` (hyphen, and contains only an empty `__init__.py`) — this import would raise `ModuleNotFoundError` if anything still called it. |
+| `services/ai-worker/` | Empty stub; superseded by orchestrator nodes (see §1 above). |
+| `services/rag-service/` (hyphen) | Older copy of `services/rag_service/pipeline.py` — vector-only retrieval, no hybrid search, no real grounding check (`"hallucination_check_passed": True` hardcoded). The actively-used module is `services/rag_service/` (underscore), imported by `services/orchestrator/nodes/scheme_rag_node.py`. |
+| `services/pdf-service/` (hyphen) | Duplicate of `services/pdf_service/` (underscore). `docker-compose.yml` and `services/pdf_service/Dockerfile` only reference the underscore version. |
+| `services/stt-service/` (hyphen) | Pre-cascade standalone Whisper service (`whisper_engine.py`, its own `Dockerfile.gpu`). Superseded by the 3-tier cascade in `services/voice_gateway/provider_cascade.py`. Not in `docker-compose.yml`. |
+| `services/vision-service/` | Empty stub (`__init__.py` only); no vision node exists yet in the graph — tracked as an open `_route_after_intent()` TODO in `graph.py`, not implemented here. |
+
+None of this affects runtime behavior today (nothing imports the hyphenated
+packages), but it's confusing for anyone reading the repo fresh — exactly the
+kind of thing that costs a new intern a wasted hour during the Day 3 trace
+exercise. Recommended next step: delete the hyphenated/dead directories in a
+dedicated cleanup PR (no logic changes, just `git rm -r`), separate from any
+feature work, so the diff is trivial to review.
