@@ -6,7 +6,7 @@ records, hallucination-checked government scheme guidance, and group governance
 documents — no app download, no literacy required.
 
 **This is a re-architected v2 of the original plan.** If you're new to the project,
-read `docs/ARCHITECTURE.md` first — it explains exactly what changed from the
+read `docs/engineering/ARCHITECTURE.md` first — it explains exactly what changed from the
 original PRD/TRD/Roadmap and why, with the supporting research in
 `docs/research/agent_frameworks.md`.
 
@@ -57,11 +57,14 @@ shared/
   whatsapp/             Meta API client (sender, parser, media download)
   observability/        Langfuse tracing wrapper
 docs/
-  ARCHITECTURE.md       <-- READ THIS SECOND, after this README
-  research/              the 2026 research backing each architecture decision
-  PRD.md / TRD.md / ROADMAP.md / APP_FLOW.md   (carried over from v1 — the
-                         product vision, personas, and feature specs are still
-                         valid; only the technical implementation changed)
+  engineering/           architecture, implementation plan, LLM guide, code-pass notes
+    ARCHITECTURE.md      <-- READ THIS SECOND, after this README
+  product/               PRD, TRD, roadmap, app flow, value proposition
+  operations/            runbooks and manual setup guides
+  planning/              sprint plans and delivery notes
+  security/              audits and remediation notes
+  research/              user model plus architecture research
+  archive/               carried-over v1 notes
 tests/
   unit/test_grounding_verifier.py   a good first PR: extend this
 migrations/

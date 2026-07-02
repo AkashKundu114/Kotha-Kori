@@ -1,7 +1,7 @@
 # Kotha-Khata v2 — Architecture Decisions
 
-This document records what changed from the original plan (`docs/PRD.md`, `docs/TRD.md`,
-`docs/ROADMAP.md` in the v1 repo) and **why**, based on a review of 2026 production
+This document records what changed from the original plan (`docs/product/PRD.md`, `docs/product/TRD.md`,
+`docs/product/ROADMAP.md` in the v1 repo) and **why**, based on a review of 2026 production
 practice for WhatsApp AI agents, Indic-language voice pipelines, and RAG systems.
 Read this before touching any code — it's the map of *why the folders are shaped this way*.
 

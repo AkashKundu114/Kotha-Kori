@@ -52,7 +52,7 @@ user actually needs it to land.
 This is the closest comparison and worth being honest about, since it's what
 reviewers will compare you against. The genuine differentiator is
 **outcome-grounded evaluation** — the `CatalogCreation.user_reported_sale_resulted`
-field and similar follow-up tracking (see `USER_MODEL_AND_RESEARCH.md`'s
+field and similar follow-up tracking (see `../research/USER_MODEL_AND_RESEARCH.md`'s
 metrics table) measure whether a bank actually accepted the generated
 document or a sale actually resulted, not just whether the chatbot's NLP
 metrics looked good in a lab eval. Most published systems in this space

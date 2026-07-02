@@ -35,7 +35,7 @@ docstring, the k=5 floor is load-bearing for privacy, don't lower it casually),
 phrasing, never for the classification itself).
 
 **Cut across all three:** idempotency + rate limiting in `gateway/main.py`
-(P0 items from `SECURITY_AUDIT_V3.md`), since I was already refining that
+(P0 items from `../security/SECURITY_AUDIT_V3.md`), since I was already refining that
 file to add image handling — no reason to leave known P0 gaps in code I was
 touching anyway.
 
@@ -52,7 +52,7 @@ touching anyway.
 3. **Onboarding flow that creates the initial `users` row with the new V3
    columns** — `user_profile_node.py` reads them; nothing in this pass
    writes them for a brand-new user. That's the Week-2 onboarding Flow work
-   from `SPRINT_V3_PLAN.md`, still open.
+   from `../planning/SPRINT_V3_PLAN.md`, still open.
 4. **`ledger_correction_rate` is read but never recomputed** — the schema
    and read-side personalization logic are in place; the write-side job
    (recompute per user, e.g. nightly, from `ledger_entries.is_corrected`) is
