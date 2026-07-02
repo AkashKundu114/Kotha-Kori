@@ -1,5 +1,3 @@
-
-
 from unsloth import FastLanguageModel
 from datasets import load_dataset
 from trl import SFTTrainer
@@ -17,14 +15,15 @@ def prepare_dataset(dataset_path: str):
 
 def format_prompt(example: dict) -> dict:
 
-    text = f"""<|im_start|>system
-তুমি কোথা-খাতার AI সহায়ক। তুমি পশ্চিমবঙ্গের স্বনির্ভর গোষ্ঠীর মহিলাদের জন্য বাংলায় সাহায্য করো।<|im_end|>
-<|im_start|>user
-{example['instruction']}
-
-{example['input']}<|im_end|>
-<|im_start|>assistant
-{example['output']}<|im_end|>"""
+    text = (
+        "<|im_start|>system\n"
+        "তুমি কোথা-খাতার AI সহায়ক। তুমি পশ্চিমবঙ্গের স্বনির্ভর গোষ্ঠীর মহিলাদের জন্য বাংলায় সাহায্য করো।<|im_end|>\n"
+        "<|im_start|>user\n"
+        f"{example['instruction']}\n\n"
+        f"{example['input']}<|im_end|>\n"
+        "<|im_start|>assistant\n"
+        f"{example['output']}<|im_end|>"
+    )
     return {"text": text}
 
 def main(config_path: str):

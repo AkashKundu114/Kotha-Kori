@@ -1,4 +1,3 @@
-
 from fastapi import FastAPI, Request, BackgroundTasks, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 import hmac, hashlib, json, time, uuid
@@ -10,9 +9,13 @@ from shared.config.settings import get_settings
 from shared.whatsapp.parser import parse_webhook_payload
 from services.orchestrator.celery_entrypoint import process_turn
 from services.voice_gateway.provider_cascade import transcribe
-from shared.whatsapp.media import download_whatsapp_audio, download_whatsapp_image
+from shared.whatsapp.media import (
+    download_whatsapp_audio,
+    download_whatsapp_image,
+    MediaTooLargeError,
+)
 
-app = FastAPI(title="Kotha-Khata Gateway", version="3.0.0")
+app = FastAPI(title="Kotha-Khata Gateway", version="3.0.1")
 app.add_middleware(CORSMiddleware, allow_origins=["*"])
 
 _redis: aioredis.Redis | None = None
@@ -43,7 +46,8 @@ async def receive_message(request: Request, background_tasks: BackgroundTasks):
     s = get_settings()
     body = await request.body()
     sig = request.headers.get("X-Hub-Signature-256", "")
-    expected = "sha256=" + hmac.new(s.wa_webhook_verify_token.encode(), body, hashlib.sha256).hexdigest()
+
+    expected = "sha256=" + hmac.new(s.wa_app_secret.encode(), body, hashlib.sha256).hexdigest()
     if not hmac.compare_digest(sig, expected):
         raise HTTPException(status_code=403)
 
@@ -71,29 +75,44 @@ async def _dispatch_to_orchestrator(msg):
     s = get_settings()
     turn_input: dict = {"last_message_type": msg.message_type}
 
-    if msg.message_type == "text":
-        turn_input["raw_input_text"] = msg.text
+    try:
+        if msg.message_type == "text":
+            turn_input["raw_input_text"] = msg.text
 
-    elif msg.message_type == "audio":
-        audio_bytes = await download_whatsapp_audio(msg.audio_id)
-        stt_result = await transcribe(audio_bytes)
-        turn_input["raw_input_transcript"] = stt_result["transcript"]
-        turn_input["transcript_provider"] = stt_result["provider"]
-        turn_input["transcript_confidence"] = stt_result["confidence"]
+        elif msg.message_type == "audio":
 
-    elif msg.message_type == "image":
-        image_bytes = await download_whatsapp_image(msg.image_id)
-        if len(image_bytes) > MAX_IMAGE_BYTES:
-            from shared.whatsapp.sender import send_text
+            audio_bytes = await download_whatsapp_audio(msg.audio_id)
+            stt_result = await transcribe(audio_bytes)
+            turn_input["raw_input_transcript"] = stt_result["transcript"]
+            turn_input["transcript_provider"] = stt_result["provider"]
+            turn_input["transcript_confidence"] = stt_result["confidence"]
 
-            await send_text(msg.from_number, "ছবিটা অনেক বড়। একটু ছোট সাইজে পাঠান।")
+        elif msg.message_type == "image":
+            image_bytes = await download_whatsapp_image(msg.image_id)
+            s3 = boto3.client("s3", region_name=s.aws_region)
+            key = f"catalog-raw/{msg.from_number}/{uuid.uuid4().hex[:10]}.jpg"
+            s3.put_object(Bucket=s.s3_bucket, Key=key, Body=image_bytes, ServerSideEncryption="AES256")
+            turn_input["raw_image_s3_key"] = key
+
+        elif msg.message_type == "interactive":
+            turn_input["raw_input_text"] = json.dumps(msg.interactive_payload or {})
+
+        else:
             return
-        s3 = boto3.client("s3", region_name=s.aws_region)
-        key = f"catalog-raw/{msg.from_number}/{uuid.uuid4().hex[:10]}.jpg"
-        s3.put_object(Bucket=s.s3_bucket, Key=key, Body=image_bytes, ServerSideEncryption="AES256")
-        turn_input["raw_image_s3_key"] = key
 
-    elif msg.message_type == "interactive":
-        turn_input["raw_input_text"] = json.dumps(msg.interactive_payload or {})
+        process_turn.delay(msg.from_number, turn_input)
 
-    process_turn.delay(msg.from_number, turn_input)
+    except MediaTooLargeError:
+        from shared.whatsapp.sender import send_text
+        friendly = (
+            "ভয়েস নোটটা অনেক বড়। ৩ মিনিটের কম রেকর্ড করে আবার পাঠান।"
+            if msg.message_type == "audio"
+            else "ছবিটা অনেক বড়। একটু ছোট সাইজে পাঠান।"
+        )
+        await send_text(msg.from_number, friendly)
+
+    except Exception:
+
+        from shared.whatsapp.sender import send_text
+        await send_text(msg.from_number, "দুঃখিত, একটু সমস্যা হয়েছে। আবার চেষ্টা করুন।")
+        raise

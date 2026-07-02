@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 from services.orchestrator.state import ConversationState
@@ -8,9 +7,11 @@ FINANCIAL_KEYWORDS = {"bikri", "বিক্রি", "kharach", "খরচ", "hi
 REPORT_KEYWORDS = {"report", "রিপোর্ট", "maaser hisab", "মাসের হিসাব"}
 MARKET_KEYWORDS = {"ki banabo", "কি বানাবো", "bazar", "বাজার", "chahida", "চাহিদা", "demand"}
 
-INTENT_CLASSIFY_SYSTEM = """তুমি কোথা-খাতার ইনটেন্ট ক্লাসিফায়ার।
-ব্যবহারকারীর বার্তা পড়ে নিচের একটি ক্যাটাগরি বেছে নাও এবং শুধু JSON ফেরত দাও:
-{"feature": "LEDGER" | "LEDGER_REPORT" | "MARKET" | "UNKNOWN", "confidence": <0.0-1.0>}"""
+INTENT_CLASSIFY_SYSTEM = (
+    "তুমি কোথা-খাতার ইনটেন্ট ক্লাসিফায়ার।\n"
+    "ব্যবহারকারীর বার্তা পড়ে নিচের একটি ক্যাটাগরি বেছে নাও এবং শুধু JSON ফেরত দাও:\n"
+    "{\"feature\": \"LEDGER\" | \"LEDGER_REPORT\" | \"MARKET\" | \"UNKNOWN\", \"confidence\": <0.0-1.0>}"
+)
 
 async def classify_intent(state: ConversationState) -> dict:
 

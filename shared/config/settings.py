@@ -7,6 +7,8 @@ class Settings(BaseSettings):
     wa_access_token: str
     wa_webhook_verify_token: str
 
+    wa_app_secret: str
+
     database_url: str
     redis_url: str
 

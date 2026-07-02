@@ -1,6 +1,6 @@
-
 from __future__ import annotations
 
+import re
 import uuid
 from datetime import date, datetime, timezone
 
@@ -14,13 +14,23 @@ from shared.db.models import LedgerEntry, SHGGroup, User
 from shared.db.session import get_db_session
 
 _TEMPLATE_DIR = "services/pdf_service/templates"
-_env = Environment(loader=FileSystemLoader(_TEMPLATE_DIR))
+
+_env = Environment(loader=FileSystemLoader(_TEMPLATE_DIR), autoescape=True)
+
+_TAG_RE = re.compile(r"<[^>]*>")
 
 BENGALI_MONTHS = {
     1: "জানুয়ারি", 2: "ফেব্রুয়ারি", 3: "মার্চ", 4: "এপ্রিল",
     5: "মে", 6: "জুন", 7: "জুলাই", 8: "আগস্ট",
     9: "সেপ্টেম্বর", 10: "অক্টোবর", 11: "নভেম্বর", 12: "ডিসেম্বর",
 }
+
+def _clean(value: str | None, max_len: int = 120) -> str:
+
+    if not value:
+        return ""
+    stripped = _TAG_RE.sub("", value)
+    return stripped.strip()[:max_len]
 
 async def generate_monthly_report(user_id: str, year: int, month: int) -> dict:
 
@@ -51,7 +61,8 @@ async def generate_monthly_report(user_id: str, year: int, month: int) -> dict:
     income_by_category: dict[str, float] = {}
     expense_by_category: dict[str, float] = {}
     for e in entries:
-        cat = e.category or "অন্যান্য"
+
+        cat = _clean(e.category) or "অন্যান্য"
         amt = float(e.amount_inr)
         if e.entry_type == "INCOME":
             income_by_category[cat] = income_by_category.get(cat, 0.0) + amt
@@ -63,9 +74,10 @@ async def generate_monthly_report(user_id: str, year: int, month: int) -> dict:
 
     template = _env.get_template("monthly_report.html")
     html_content = template.render(
-        member_name=user.name or "সদস্য",
-        shg_name=shg.name if shg else "",
-        district=user.district or "",
+
+        member_name=_clean(user.name) or "সদস্য",
+        shg_name=_clean(shg.name) if shg else "",
+        district=_clean(user.district),
         month_bengali=BENGALI_MONTHS[month],
         year=year,
         income_by_category=income_by_category,
@@ -76,7 +88,7 @@ async def generate_monthly_report(user_id: str, year: int, month: int) -> dict:
         generated_date=datetime.now(timezone.utc).strftime("%d/%m/%Y"),
     )
 
-    pdf_bytes = HTML(string=html_content, base_url=_TEMPLATE_DIR).write_pdf()
+    pdf_bytes = HTML(string=html_content, base_url=None).write_pdf()
 
     s3_key = f"reports/{user_id}/{year}/{month}/{uuid.uuid4().hex[:8]}.pdf"
     s3 = boto3.client("s3", region_name=s.aws_region)

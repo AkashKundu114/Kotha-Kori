@@ -21,9 +21,9 @@
 
 | Feature | Docs say | Code reality |
 |---|---|---|
-| 1. Voice-Ledger | Done, MVP-ready | `ledger_node.py` exists, cascades Qwen→Claude. **Missing:** DB write step (node returns a confirmation message but no `LEDGER_SAVE` edge/DB commit is wired in `graph.py`), no PDF node registered |
-| 2. Scheme RAG | Done, hallucination-guarded | `scheme_rag_node.py` + `grounding_verifier.py` genuinely solid — this is your strongest asset, keep it front-and-center in any demo/paper |
-| 3. Catalog Creator | "MVP+" in PRD | **Does not exist.** `services/vision-service/__init__.py` is empty. No node, no rembg integration, no vision model call anywhere in v2 |
+| 1. Voice-Ledger | Done, MVP-ready | `ledger_node.py`, `ledger_confirm_node.py`, and `ledger_report_node.py` are wired in `graph.py`, including confirmation, DB persistence, and PDF report delivery |
+| 2. Scheme RAG | Done, hallucination-guarded | `scheme_rag_node.py` + `grounding_verifier.py` remain available, but V3 routing currently focuses on ledger, catalog, and market flows |
+| 3. Catalog Creator | "MVP+" in PRD | Implemented through `services/orchestrator/nodes/catalog_node.py` plus `services/vision_service/` for image analysis and background processing |
 | User model / personalization | Not mentioned anywhere in v1 or v2 | **New requirement** — see `docs/research/USER_MODEL_AND_RESEARCH.md` |
 
 This table is your single most important artifact for briefing an AI coding assistant — paste it into the first message of any Claude Code / Cursor session so it doesn't assume more is done than actually is.

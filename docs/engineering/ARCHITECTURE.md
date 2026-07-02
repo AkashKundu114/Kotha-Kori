@@ -170,12 +170,12 @@ deleted rather than maintained going forward:
 
 | Path | Why it's dead |
 |---|---|
-| `services/gateway/router.py` | Superseded by `services/orchestrator/nodes/intent_router.py` per `graph.py`'s own docstring. Also **currently broken**: it does `from services.ai_worker import tasks` (underscore) but the only such package on disk is `services/ai-worker/` (hyphen, and contains only an empty `__init__.py`) — this import would raise `ModuleNotFoundError` if anything still called it. |
-| `services/ai-worker/` | Empty stub; superseded by orchestrator nodes (see §1 above). |
+| `services/gateway/router.py` | Removed. It was superseded by `services/orchestrator/nodes/intent_router.py` and still referenced the deleted legacy `services.ai_worker` task package. |
+| `services/ai-worker/` | Removed. Empty stub superseded by orchestrator nodes (see §1 above). |
 | `services/rag-service/` (hyphen) | Older copy of `services/rag_service/pipeline.py` — vector-only retrieval, no hybrid search, no real grounding check (`"hallucination_check_passed": True` hardcoded). The actively-used module is `services/rag_service/` (underscore), imported by `services/orchestrator/nodes/scheme_rag_node.py`. |
 | `services/pdf-service/` (hyphen) | Duplicate of `services/pdf_service/` (underscore). `docker-compose.yml` and `services/pdf_service/Dockerfile` only reference the underscore version. |
 | `services/stt-service/` (hyphen) | Pre-cascade standalone Whisper service (`whisper_engine.py`, its own `Dockerfile.gpu`). Superseded by the 3-tier cascade in `services/voice_gateway/provider_cascade.py`. Not in `docker-compose.yml`. |
-| `services/vision-service/` | Empty stub (`__init__.py` only); no vision node exists yet in the graph — tracked as an open `_route_after_intent()` TODO in `graph.py`, not implemented here. |
+| `services/vision-service/` | Removed. The active implementation lives in `services/vision_service/` and is wired through the catalog node. |
 
 None of this affects runtime behavior today (nothing imports the hyphenated
 packages), but it's confusing for anyone reading the repo fresh — exactly the

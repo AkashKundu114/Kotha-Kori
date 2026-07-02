@@ -1,5 +1,3 @@
-
-
 import sys
 import os
 
@@ -85,3 +83,10 @@ def test_swapped_amounts_across_two_schemes_is_caught():
     result = verify_grounding(answer, chunks)
     assert result["all_grounded"] is False
     assert set(result["ungrounded"]) == {"₹2500", "₹1000"}
+
+def test_word_form_amount_is_caught_when_not_grounded():
+    chunks = [{"chunk_bengali": "লক্ষ্মীর ভান্ডারে প্রতি মাসে ₹1000 দেওয়া হয়।"}]
+    answer = "লক্ষ্মীর ভান্ডার থেকে আপনি এক হাজার টাকা পাবেন।"
+    result = verify_grounding(answer, chunks)
+    assert result["all_grounded"] is False
+    assert "এক হাজার টাকা" in result["ungrounded"]

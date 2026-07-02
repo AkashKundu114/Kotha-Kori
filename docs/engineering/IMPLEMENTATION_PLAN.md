@@ -26,12 +26,12 @@
 kotha-khata/
 ├── services/
 │   ├── gateway/              # FastAPI webhook receiver
-│   ├── ai-worker/            # Celery AI processing tasks
-│   ├── stt-service/          # Bhashini + Whisper STT
-│   ├── rag-service/          # Scheme RAG engine
-│   ├── vision-service/       # Image processing
-│   ├── pdf-service/          # Report generation
-│   └── notification-service/ # Proactive alerts
+  │   ├── orchestrator/         # LangGraph state machine and Celery worker
+  │   ├── voice_gateway/        # Sarvam, Bhashini, and Whisper STT cascade
+  │   ├── rag_service/          # Scheme RAG engine
+  │   ├── vision_service/       # Image processing
+  │   ├── market_service/       # Market trend aggregation
+  │   └── pdf_service/          # Report generation
 ├── shared/
 │   ├── db/                   # SQLAlchemy models, Alembic migrations
 │   ├── redis/                # Session management utilities
@@ -425,7 +425,7 @@ async def transcribe_bengali(audio_bytes: bytes) -> dict:
 ### Week 5: Celery Task Queue
 
 ```python
-# services/ai-worker/tasks.py
+# services/orchestrator/celery_entrypoint.py
 from celery import Celery
 import asyncio
 
@@ -494,7 +494,7 @@ def process_voice_ledger(
 ### Week 6: Entity Extraction (NER + LLM)
 
 ```python
-# services/ai-worker/entity_extraction.py
+# services/orchestrator/nodes/ledger_node.py
 import anthropic
 import json
 import re

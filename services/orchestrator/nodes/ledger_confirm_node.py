@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -11,13 +10,14 @@ NEGATIVE = {"না", "no", "na", "bhul", "ভুল", "ঠিক নয়"}
 
 MAX_CONFIRMATION_TURNS = 3
 
-CORRECTION_SYSTEM = """তুমি বাংলা আর্থিক তথ্য নিষ্কাশনকারী। ব্যবহারকারী একটি পূর্বের
-নিষ্কাশনে সংশোধন দিয়েছেন। মূল বাক্য, পূর্বের ফলাফল এবং সংশোধনের ভিত্তিতে
-আপডেট করা JSON ফেরত দাও, একই ফরম্যাটে:
-
-{"transactions": [{"type": "INCOME"|"EXPENSE", "amount_inr": <number>,
- "item_bengali": "...", "quantity": <number|null>, "unit": "...|null"}],
- "confidence": <0.0-1.0>}"""
+CORRECTION_SYSTEM = (
+    "তুমি বাংলা আর্থিক তথ্য নিষ্কাশনকারী। ব্যবহারকারী একটি পূর্বের\n"
+    "নিষ্কাশনে সংশোধন দিয়েছেন। মূল বাক্য, পূর্বের ফলাফল এবং সংশোধনের ভিত্তিতে\n"
+    "আপডেট করা JSON ফেরত দাও, একই ফরম্যাটে:\n\n"
+    "{\"transactions\": [{\"type\": \"INCOME\"|\"EXPENSE\", \"amount_inr\": <number>,\n"
+    " \"item_bengali\": \"...\", \"quantity\": <number|null>, \"unit\": \"...|null\"}],\n"
+    " \"confidence\": <0.0-1.0>}"
+)
 
 async def ledger_confirm_node(state: ConversationState) -> dict:
     reply_raw = (state.get("raw_input_text") or state.get("raw_input_transcript") or "").strip().lower()

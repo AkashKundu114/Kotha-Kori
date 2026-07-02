@@ -1,10 +1,21 @@
-
 from __future__ import annotations
 
 import re
 
 _AMOUNT_RE = re.compile(r"(₹\s?[০-৯0-9,]+|[০-৯0-9,]+\s?টাকা)")
 _DATE_RE = re.compile(r"\b(\d{1,2}\s?(জানুয়ারি|ফেব্রুয়ারি|মার্চ|এপ্রিল|মে|জুন|জুলাই|আগস্ট|সেপ্টেম্বর|অক্টোবর|নভেম্বর|ডিসেম্বর))\b")
+
+_NUMBER_WORDS = {
+    "এক": 1, "দুই": 2, "তিন": 3, "চার": 4, "পাঁচ": 5,
+    "দশ": 10, "পনেরো": 15, "বিশ": 20, "পঁচিশ": 25, "ত্রিশ": 30,
+    "পঞ্চাশ": 50, "একশো": 100, "দুইশো": 200, "তিনশো": 300,
+    "পাঁচশো": 500, "হাজার": 1000,
+}
+_WORD_AMOUNT_RE = re.compile(
+    r"(?:" + "|".join(re.escape(w) for w in _NUMBER_WORDS) + r")"
+    r"(?:\s+(?:" + "|".join(re.escape(w) for w in _NUMBER_WORDS) + r"))*"
+    r"\s+টাকা"
+)
 
 SCHEME_NAME_ALIASES: dict[str, str] = {
     "লক্ষ্মীর ভান্ডার": "Lakshmir Bhandar",
@@ -31,6 +42,9 @@ def _extract_assertions(answer_bengali: str) -> list[tuple[str, int]]:
         assertions.append((m.group(1).strip(), m.start()))
     for m in _DATE_RE.finditer(answer_bengali):
         assertions.append((m.group(1).strip(), m.start()))
+    for m in _WORD_AMOUNT_RE.finditer(answer_bengali):
+
+        assertions.append((m.group(0).strip(), m.start()))
     return assertions
 
 def _nearby_scheme(answer_bengali: str, assertion_start: int) -> str | None:

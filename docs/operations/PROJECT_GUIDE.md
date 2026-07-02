@@ -79,11 +79,9 @@ This is the single most useful exercise for understanding the architecture.
    a sample payload if one isn't in `tests/fixtures/` yet) and watch it in the
    Langfuse UI at `localhost:3000`.
 
-   **Note:** while doing this trace, you'll notice `services/gateway/router.py`
-   and a handful of hyphenated `services/*-service/` directories that *look*
-   relevant but aren't actually wired into anything anymore. See
-   `docs/engineering/ARCHITECTURE.md` §7.2 for the full list — don't spend time trying to
-   make sense of them, they're v1 leftovers pending a cleanup PR.
+   **Note:** the old keyword router has been removed. The active routing path is
+   `services/gateway/main.py` → `services/orchestrator/graph.py` →
+   `services/orchestrator/nodes/intent_router.py`.
 
 ## Day 4-5 — Your first task
 

@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 from services.orchestrator.state import ConversationState
@@ -6,10 +5,12 @@ from services.orchestrator.model_router import route_completion, TaskCriticality
 from services.market_service.aggregator import block_sales_trend, classify_trend
 from services.market_service.agmarknet_client import fetch_mandi_prices
 
-PHRASING_SYSTEM = """তুমি একজন বন্ধুত্বপূর্ণ বাজার পরামর্শদাতা, পশ্চিমবঙ্গের
-স্বনির্ভর গোষ্ঠীর মহিলাদের জন্য। দেওয়া তথ্যের ভিত্তিতে, সহজ কথ্য বাংলায়
-৩-৪ লাইনের একটি সংক্ষিপ্ত সাপ্তাহিক পরামর্শ লেখো। শুধুমাত্র দেওয়া তথ্য
-ব্যবহার করো, নতুন কোনো পণ্য বা সংখ্যা তৈরি করো না।"""
+PHRASING_SYSTEM = (
+    "তুমি একজন বন্ধুত্বপূর্ণ বাজার পরামর্শদাতা, পশ্চিমবঙ্গের\n"
+    "স্বনির্ভর গোষ্ঠীর মহিলাদের জন্য। দেওয়া তথ্যের ভিত্তিতে, সহজ কথ্য বাংলায়\n"
+    "৩-৪ লাইনের একটি সংক্ষিপ্ত সাপ্তাহিক পরামর্শ লেখো। শুধুমাত্র দেওয়া তথ্য\n"
+    "ব্যবহার করো, নতুন কোনো পণ্য বা সংখ্যা তৈরি করো না।"
+)
 
 async def market_predictor_node(state: ConversationState) -> dict:
     profile = state.get("user_profile") or {}

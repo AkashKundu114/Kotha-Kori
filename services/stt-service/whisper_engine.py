@@ -1,4 +1,3 @@
-
 from faster_whisper import WhisperModel
 from shared.config.settings import get_settings
 import subprocess, tempfile, os

@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 import json
@@ -7,16 +6,16 @@ import re
 from services.orchestrator.state import ConversationState
 from services.orchestrator.model_router import route_completion, TaskCriticality
 
-EXTRACTION_SYSTEM = """তুমি বাংলা আর্থিক তথ্য নিষ্কাশনকারী। নিচের বাংলা টেক্সট থেকে
-লেনদেন বের করো এবং শুধুমাত্র এই JSON ফরম্যাটে ফেরত দাও, অন্য কিছু লিখো না:
-
-{"transactions": [{"type": "INCOME"|"EXPENSE", "amount_inr": <number>,
- "item_bengali": "...", "quantity": <number|null>, "unit": "...|null"}],
- "confidence": <0.0-1.0>}
-
-Bengali number words: এক=1, দুই=2, তিন=3, চার=4, পাঁচ=5, দশ=10, পনেরো=15,
-বিশ=20, পঁচিশ=25, ত্রিশ=30, পঞ্চাশ=50, একশো=100, দুইশো=200, তিনশো=300,
-পাঁচশো=500, হাজার=1000. Extract ALL transactions present, even if multiple."""
+EXTRACTION_SYSTEM = (
+    "তুমি বাংলা আর্থিক তথ্য নিষ্কাশনকারী। নিচের বাংলা টেক্সট থেকে\n"
+    "লেনদেন বের করো এবং শুধুমাত্র এই JSON ফরম্যাটে ফেরত দাও, অন্য কিছু লিখো না:\n\n"
+    "{\"transactions\": [{\"type\": \"INCOME\"|\"EXPENSE\", \"amount_inr\": <number>,\n"
+    " \"item_bengali\": \"...\", \"quantity\": <number|null>, \"unit\": \"...|null\"}],\n"
+    " \"confidence\": <0.0-1.0>}\n\n"
+    "Bengali number words: এক=1, দুই=2, তিন=3, চার=4, পাঁচ=5, দশ=10, পনেরো=15,\n"
+    "বিশ=20, পঁচিশ=25, ত্রিশ=30, পঞ্চাশ=50, একশো=100, দুইশো=200, তিনশো=300,\n"
+    "পাঁচশো=500, হাজার=1000. Extract ALL transactions present, even if multiple."
+)
 
 BASE_CONFIDENCE_FLOOR = 0.80
 

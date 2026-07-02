@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 from datetime import date, timedelta
@@ -16,21 +15,23 @@ async def block_sales_trend(block: str, weeks_back: int = 8) -> list[dict]:
     async with get_db_session() as db:
         rows = (
             await db.execute(
-                text("""
-                SELECT
-                  le.category,
-                  date_trunc('week', le.entry_date) AS week,
-                  SUM(le.amount_inr) AS total_amount,
-                  COUNT(DISTINCT le.user_id) AS distinct_sellers
-                FROM ledger_entries le
-                JOIN users u ON u.id = le.user_id
-                WHERE u.block = :block
-                  AND le.entry_type = 'INCOME'
-                  AND le.entry_date >= :since
-                GROUP BY le.category, week
-                HAVING COUNT(DISTINCT le.user_id) >= :min_sample
-                ORDER BY week DESC
-            """),
+                text(
+                    "\n"
+                    "                SELECT\n"
+                    "                  le.category,\n"
+                    "                  date_trunc('week', le.entry_date) AS week,\n"
+                    "                  SUM(le.amount_inr) AS total_amount,\n"
+                    "                  COUNT(DISTINCT le.user_id) AS distinct_sellers\n"
+                    "                FROM ledger_entries le\n"
+                    "                JOIN users u ON u.id = le.user_id\n"
+                    "                WHERE u.block = :block\n"
+                    "                  AND le.entry_type = 'INCOME'\n"
+                    "                  AND le.entry_date >= :since\n"
+                    "                GROUP BY le.category, week\n"
+                    "                HAVING COUNT(DISTINCT le.user_id) >= :min_sample\n"
+                    "                ORDER BY week DESC\n"
+                    "            "
+                ),
                 {"block": block, "since": since, "min_sample": MIN_SAMPLE_SIZE},
             )
         ).fetchall()

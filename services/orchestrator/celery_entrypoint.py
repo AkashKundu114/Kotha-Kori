@@ -1,4 +1,3 @@
-
 from celery import Celery
 import asyncio
 
@@ -8,6 +7,7 @@ from shared.config.settings import get_settings
 
 s = get_settings()
 celery_app = Celery("kotha_khata_orchestrator", broker=s.redis_url, backend=s.redis_url)
+celery_app.conf.update(task_serializer="json", result_serializer="json", accept_content=["json"])
 
 @celery_app.task(name="orchestrator.process_turn", max_retries=2, default_retry_delay=5)
 def process_turn(whatsapp_number: str, turn_input: dict):

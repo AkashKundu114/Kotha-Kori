@@ -52,6 +52,8 @@ services/
   voice_gateway/        3-tier STT cascade + providers/{sarvam,bhashini,whisper_local}
   rag_service/          hybrid retrieval + the grounding verifier
   pdf_service/          unchanged from v1 — WeasyPrint report generation
+  market_service/       market price aggregation and external data adapters
+  vision_service/       catalog image analysis/background processing
 shared/
   config/settings.py    all environment configuration
   whatsapp/             Meta API client (sender, parser, media download)
