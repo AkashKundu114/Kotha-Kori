@@ -1,8 +1,4 @@
-"""
-Self-hosted Bengali STT using faster-whisper.
-Fine-tuned model replaces all paid STT APIs.
-Cost per call: $0 (GPU amortized over server cost).
-"""
+
 from faster_whisper import WhisperModel
 from shared.config.settings import get_settings
 import subprocess, tempfile, os
@@ -33,10 +29,7 @@ def ogg_to_wav(ogg_bytes: bytes) -> bytes:
     return data
 
 def transcribe(audio_bytes: bytes) -> dict:
-    """
-    Main STT entry point.
-    Returns: {"transcript": str, "confidence": float, "language": str}
-    """
+
     wav_bytes = ogg_to_wav(audio_bytes)
     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
         f.write(wav_bytes); wav_path = f.name
@@ -44,17 +37,17 @@ def transcribe(audio_bytes: bytes) -> dict:
     model = get_model()
     segments, info = model.transcribe(
         wav_path,
-        language="bn",          # Bengali
+        language="bn",
         beam_size=5,
         word_timestamps=True,
         condition_on_previous_text=False,
-        vad_filter=True,         # Remove silence
+        vad_filter=True,
         vad_parameters={"min_silence_duration_ms": 500}
     )
 
     transcript = " ".join(seg.text.strip() for seg in segments)
     avg_logprob = sum(seg.avg_logprob for seg in segments) / max(len(list(segments)), 1)
-    confidence = min(1.0, max(0.0, (avg_logprob + 1.0)))  # normalize roughly
+    confidence = min(1.0, max(0.0, (avg_logprob + 1.0)))
 
     os.unlink(wav_path)
     return {

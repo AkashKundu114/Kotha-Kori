@@ -1,4 +1,3 @@
-# Built from repo root (context: .) so it can import shared/ and services/
 FROM python:3.11-slim
 WORKDIR /app
 COPY requirements.txt .

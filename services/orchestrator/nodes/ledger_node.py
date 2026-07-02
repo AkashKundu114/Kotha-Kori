@@ -1,10 +1,4 @@
-"""
-Ledger extraction node — ROUTINE task, cascades local Qwen -> Claude on
-low confidence. This is the highest-volume node in the system, so keeping it
-off Claude by default is where most of the cost saving from the original
-"zero-cost LLM" goal actually comes from in v2 — without sacrificing accuracy
-on the calls that need it.
-"""
+
 from __future__ import annotations
 
 import json
@@ -18,21 +12,36 @@ EXTRACTION_SYSTEM = """তুমি বাংলা আর্থিক তথ্
 
 {"transactions": [{"type": "INCOME"|"EXPENSE", "amount_inr": <number>,
  "item_bengali": "...", "quantity": <number|null>, "unit": "...|null"}],
- "confidence": <0.0-1.0>}"""
+ "confidence": <0.0-1.0>}
 
+Bengali number words: এক=1, দুই=2, তিন=3, চার=4, পাঁচ=5, দশ=10, পনেরো=15,
+বিশ=20, পঁচিশ=25, ত্রিশ=30, পঞ্চাশ=50, একশো=100, দুইশো=200, তিনশো=300,
+পাঁচশো=500, হাজার=1000. Extract ALL transactions present, even if multiple."""
+
+BASE_CONFIDENCE_FLOOR = 0.80
+
+MAX_FLOOR_ADJUSTMENT = 0.12
+
+def _personalized_confidence_floor(user_profile: dict | None) -> float:
+    if not user_profile:
+        return BASE_CONFIDENCE_FLOOR
+    correction_rate = float(user_profile.get("ledger_correction_rate", 0.0) or 0.0)
+
+    adjustment = min(MAX_FLOOR_ADJUSTMENT, correction_rate * MAX_FLOOR_ADJUSTMENT * 2)
+    return min(0.95, BASE_CONFIDENCE_FLOOR + adjustment)
 
 def _strip_json_fences(text: str) -> str:
     return re.sub(r"```json|```", "", text).strip()
 
-
 async def ledger_extract_node(state: ConversationState) -> dict:
     transcript = state.get("raw_input_transcript") or state.get("raw_input_text") or ""
+    confidence_floor = _personalized_confidence_floor(state.get("user_profile"))
 
     result = await route_completion(
         system=EXTRACTION_SYSTEM,
         prompt=transcript,
         criticality=TaskCriticality.ROUTINE,
-        confidence_floor=0.80,
+        confidence_floor=confidence_floor,
     )
 
     try:
@@ -54,6 +63,7 @@ async def ledger_extract_node(state: ConversationState) -> dict:
         )
         return {
             "pending_ledger_entry": None,
+            "awaiting_confirmation": False,
             "outbound_messages": [{"type": "text", "body": clarify_msg}],
             "trace": [f"ledger_extract_node:clarify:{result['model_used']}"],
         }
@@ -61,10 +71,11 @@ async def ledger_extract_node(state: ConversationState) -> dict:
     confirmation = _build_confirmation(pending)
     return {
         "pending_ledger_entry": pending,
+        "awaiting_confirmation": True,
+        "ledger_confirmation_turns": 0,
         "outbound_messages": [{"type": "text", "body": confirmation}],
-        "trace": [f"ledger_extract_node:confirm:{result['model_used']}:escalated={result['escalated']}"],
+        "trace": [f"ledger_extract_node:confirm:{result['model_used']}:floor={confidence_floor:.2f}"],
     }
-
 
 def _build_confirmation(pending: dict) -> str:
     lines = ["আমি এইটুকু বুঝলাম:"]

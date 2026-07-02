@@ -1,6 +1,4 @@
-"""
-Master intent router — dispatches incoming messages to correct Celery task.
-"""
+
 from shared.whatsapp.parser import IncomingMessage
 from shared.redis.session_manager import get_session, set_session
 from services.ai_worker import tasks
@@ -16,17 +14,12 @@ async def route_message(msg: IncomingMessage):
     session = await get_session(msg.from_number)
     state   = session.get("state", "IDLE")
 
-    # ── Resume active flow ─────────────────────────────────────────
     if state != "IDLE":
         tasks.resume_flow.delay(msg.from_number, msg.__dict__, session)
         return
 
-    # ── New user → onboarding ──────────────────────────────────────
     from shared.db.session import get_db
-    # (Check if user exists in DB; if not → onboarding)
-    # ... abbreviated for skeleton
 
-    # ── Image routing ──────────────────────────────────────────────
     if msg.message_type == "image":
         caption = (msg.caption or "").lower()
         if any(k in caption for k in AGRI_KEYWORDS):
@@ -35,12 +28,11 @@ async def route_message(msg: IncomingMessage):
             tasks.process_catalog_image.delay(msg.from_number, msg.image_id)
         return
 
-    # ── Keyword-based routing ──────────────────────────────────────
     text = ""
     if msg.message_type == "text":
         text = msg.text.lower()
     elif msg.message_type == "audio":
-        # Quick keyword routing will happen after STT in the worker
+
         tasks.process_voice_route.delay(msg.from_number, msg.audio_id)
         return
 

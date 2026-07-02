@@ -1,7 +1,6 @@
 version: "3.9"
 
 services:
-  # ── Infrastructure ──────────────────────────────────────────────
   postgres:
     image: pgvector/pgvector:pg16
     environment:
@@ -24,7 +23,6 @@ services:
       - "6379:6379"
     command: redis-server --appendonly yes
 
-  # ── Tier-3 fallback LLM + embeddings (self-hosted, see ARCHITECTURE.md) ──
   ollama:
     image: ollama/ollama:latest
     volumes:
@@ -39,7 +37,6 @@ services:
               count: 1
               capabilities: [gpu]
 
-  # ── Observability (NEW in v2 — see ARCHITECTURE.md #6) ─────────────
   langfuse:
     image: langfuse/langfuse:2
     environment:
@@ -53,7 +50,6 @@ services:
       postgres:
         condition: service_healthy
 
-  # ── Application Services ────────────────────────────────────────
   gateway:
     build: ./services/gateway
     env_file: .env

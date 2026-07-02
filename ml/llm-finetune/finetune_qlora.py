@@ -1,20 +1,4 @@
-"""
-QLoRA fine-tuning of Qwen2.5-7B-Instruct for Kotha-Khata.
 
-What we're fine-tuning FOR:
-  1. Bengali financial entity extraction (ledger)
-  2. West Bengal government scheme eligibility Q&A
-  3. Bengali meeting minutes parsing
-  4. Instruction-following in dialectal Bengali
-  5. Strict "refuse to hallucinate" behaviour on scheme data
-
-Hardware needed: 1x RTX 3090 (24GB) or 1x A10G (24GB)
-Training time: ~4–6 hours for 10,000 examples
-Cost on RunPod: ~$2–3 (one-time)
-
-Usage:
-  python finetune_qlora.py --config config/default.yaml
-"""
 
 from unsloth import FastLanguageModel
 from datasets import load_dataset
@@ -27,19 +11,12 @@ def load_config(path: str) -> dict:
         return yaml.safe_load(f)
 
 def prepare_dataset(dataset_path: str):
-    """
-    Expected dataset format (JSONL):
-    {
-      "instruction": "নিচের বাংলা বাক্য থেকে আর্থিক তথ্য বের করো।",
-      "input": "আজ আমি ১৫ প্যাকেট পাপড় ৩০০ টাকায় বিক্রি করেছি।",
-      "output": "{\"transactions\": [{\"type\": \"INCOME\", \"amount_inr\": 300, ...}]}"
-    }
-    """
+
     dataset = load_dataset("json", data_files=dataset_path, split="train")
     return dataset
 
 def format_prompt(example: dict) -> dict:
-    """Qwen2.5 chat template format."""
+
     text = f"""<|im_start|>system
 তুমি কোথা-খাতার AI সহায়ক। তুমি পশ্চিমবঙ্গের স্বনির্ভর গোষ্ঠীর মহিলাদের জন্য বাংলায় সাহায্য করো।<|im_end|>
 <|im_start|>user
@@ -53,19 +30,17 @@ def format_prompt(example: dict) -> dict:
 def main(config_path: str):
     config = load_config(config_path)
 
-    # ── Load base model with Unsloth (4x faster fine-tuning) ────────
     model, tokenizer = FastLanguageModel.from_pretrained(
         model_name="unsloth/Qwen2.5-7B-Instruct-bnb-4bit",
         max_seq_length=2048,
-        dtype=None,  # Auto-detect
-        load_in_4bit=True,  # QLoRA: 4-bit quantization
+        dtype=None,
+        load_in_4bit=True,
     )
 
-    # ── Apply LoRA adapters ─────────────────────────────────────────
     model = FastLanguageModel.get_peft_model(
         model,
-        r=16,                       # LoRA rank
-        target_modules=[            # Attention + FFN layers
+        r=16,
+        target_modules=[
             "q_proj", "k_proj", "v_proj", "o_proj",
             "gate_proj", "up_proj", "down_proj"
         ],
@@ -76,11 +51,9 @@ def main(config_path: str):
         random_state=42,
     )
 
-    # ── Prepare dataset ─────────────────────────────────────────────
     dataset = prepare_dataset(config["dataset_path"])
     dataset = dataset.map(format_prompt)
 
-    # ── Training ─────────────────────────────────────────────────────
     trainer = SFTTrainer(
         model=model,
         tokenizer=tokenizer,
@@ -104,11 +77,10 @@ def main(config_path: str):
     )
     trainer.train()
 
-    # ── Save + convert to GGUF for Ollama ────────────────────────────
     model.save_pretrained_gguf(
         "models/kotha-khata-qwen",
         tokenizer,
-        quantization_method="q4_k_m"  # Best quality/size balance
+        quantization_method="q4_k_m"
     )
     print("✅ Model saved. Run: ollama create kotha-khata-qwen -f Modelfile")
 

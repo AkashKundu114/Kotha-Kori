@@ -1,57 +1,55 @@
-"""
-Typed state for the Kotha-Khata conversation graph.
 
-This replaces the old convention-based Redis hash
-(`session:{number}` with loosely-typed `context` JSON blobs) with a single
-typed object that LangGraph checkpoints automatically. Every node reads and
-returns a partial update to this state — nothing is implicit.
-"""
 from __future__ import annotations
 
 from typing import Literal, TypedDict, Annotated
 from operator import add
 
-
 Feature = Literal[
-    "LEDGER", "SCHEME_RAG", "CATALOG", "AGRI", "MEETING", "TRAINING", "ONBOARDING", "IDLE"
+    "LEDGER", "LEDGER_REPORT", "CATALOG", "MARKET", "ONBOARDING", "IDLE"
 ]
-
 
 class PendingLedgerEntry(TypedDict, total=False):
     transactions: list[dict]
     overall_confidence: float
     raw_transcript: str
-    extracted_by: str  # "qwen-local" | "claude" — which model produced this
+    extracted_by: str
 
+class UserProfile(TypedDict, total=False):
+
+    business_categories: list[str]
+    self_reported_literacy: str
+    preferred_modality: str
+    dialect_hint: str
+    ledger_correction_rate: float
+    trust_stage: str
 
 class ConversationState(TypedDict, total=False):
-    # Identity
+
     whatsapp_number: str
     user_id: str | None
     is_new_user: bool
+    user_profile: UserProfile | None
 
-    # Routing
+    onboarding_step: str | None
+    onboarding_name: str | None
+    onboarding_block: str | None
+
     active_feature: Feature
     last_message_type: Literal["text", "audio", "image", "interactive"]
     raw_input_text: str | None
     raw_input_transcript: str | None
-    transcript_provider: str | None  # "sarvam" | "bhashini" | "whisper-local"
+    transcript_provider: str | None
     transcript_confidence: float | None
 
-    # Ledger sub-state
     pending_ledger_entry: PendingLedgerEntry | None
+    awaiting_confirmation: bool
+    ledger_confirmation_turns: int
 
-    # Scheme RAG sub-state
-    scheme_query: str | None
-    scheme_filter: list[str] | None
-    retrieved_chunks: list[dict] | None
-    draft_answer_bengali: str | None
-    grounding_report: dict | None  # output of grounding_verifier
-    final_answer_bengali: str | None
+    raw_image_s3_key: str | None
+    catalog_result: dict | None
 
-    # Bookkeeping — append-only audit trail of every node visited this turn.
-    # Annotated with `add` so LangGraph merges across nodes instead of overwriting.
+    market_query: str | None
+    market_report: dict | None
+
     trace: Annotated[list[str], add]
-
-    # Output queue — messages this turn produced, sent at the end of graph execution
     outbound_messages: Annotated[list[dict], add]

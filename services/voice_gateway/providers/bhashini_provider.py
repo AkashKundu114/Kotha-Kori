@@ -1,14 +1,10 @@
-"""
-Bhashini provider — free, GoI-backed fallback tier. Used when Sarvam errors,
-times out, or the monthly budget cap is reached (cost-control valve).
-"""
+
 import base64
 import httpx
 
 from shared.config.settings import get_settings
 
 BHASHINI_PIPELINE_URL = "https://dhruva-api.bhashini.gov.in/services/inference/pipeline"
-
 
 async def transcribe(audio_bytes: bytes, language: str = "bn") -> dict:
     s = get_settings()
@@ -45,8 +41,5 @@ async def transcribe(audio_bytes: bytes, language: str = "bn") -> dict:
         result = r.json()
 
     transcript = result["pipelineResponse"][0]["output"][0]["source"]
-    # Bhashini doesn't return a confidence score — use a fixed heuristic,
-    # deliberately below the cascade's confidence floor so a genuinely poor
-    # transcription still falls through to the local model rather than
-    # being trusted blindly.
+
     return {"transcript": transcript.strip(), "confidence": 0.78}

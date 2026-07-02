@@ -1,18 +1,4 @@
-"""
-Fine-tuning openai/whisper-large-v3 for rural Bengali dialects.
 
-Target dialects: Rarhi, Barendri, Haor-influenced
-Domain vocabulary: financial terms, product names, SHG governance language
-
-Dataset sources:
-  1. Mozilla Common Voice Bengali (public)
-  2. FLEURS Bengali (Google, public)
-  3. Custom recordings from pilot SHG groups (collect during pilot)
-  4. Synthetic: TTS of domain sentences → augment
-
-Hardware: 1x RTX 3090 (24GB) — fits with gradient checkpointing
-Training time: ~8 hours for 100h dataset
-"""
 from transformers import WhisperProcessor, WhisperForConditionalGeneration, Seq2SeqTrainer, Seq2SeqTrainingArguments
 from datasets import load_dataset, Audio
 from dataclasses import dataclass
@@ -47,12 +33,10 @@ def main():
     processor = WhisperProcessor.from_pretrained(MODEL, language="Bengali", task="transcribe")
     model = WhisperForConditionalGeneration.from_pretrained(MODEL)
 
-    # Force Bengali
     model.generation_config.language = "Bengali"
     model.generation_config.task = "transcribe"
     model.generation_config.forced_decoder_ids = None
 
-    # Load dataset (example: Common Voice bn)
     dataset = load_dataset("mozilla-foundation/common_voice_13_0", "bn", split="train+validation")
     dataset = dataset.cast_column("audio", Audio(sampling_rate=16000))
     dataset = dataset.map(prepare_dataset, fn_kwargs={"processor": processor}, remove_columns=dataset.column_names)

@@ -1,17 +1,10 @@
-"""
-Self-hosted fine-tuned faster-whisper — final fallback tier.
-Zero marginal cost; the GPU server cost is fixed regardless of volume, so
-this is where the system should land once fine-tuned on pilot audio data
-(see ml/whisper-finetune/finetune.py, carried over unchanged from v1 — the
-fine-tuning approach itself was already sound, only its *position* in the
-cascade has changed).
-"""
+
+
 from faster_whisper import WhisperModel
 
 from shared.config.settings import get_settings
 
 _model: WhisperModel | None = None
-
 
 def _get_model() -> WhisperModel:
     global _model
@@ -19,7 +12,6 @@ def _get_model() -> WhisperModel:
         s = get_settings()
         _model = WhisperModel(s.whisper_model_path, device=s.whisper_device, compute_type=s.whisper_compute_type)
     return _model
-
 
 async def transcribe(audio_bytes: bytes, language: str = "bn") -> dict:
     import tempfile

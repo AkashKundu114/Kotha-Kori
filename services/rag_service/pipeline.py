@@ -1,10 +1,4 @@
-"""
-Scheme RAG pipeline with hybrid retrieval (the TRD's pipeline diagram
-promised BM25 + pgvector fusion; v1's pipeline.py only ever did vector
-search — this implements the fusion for real, using Postgres full-text
-search instead of standing up a separate BM25 index, so no new infra is
-needed).
-"""
+
 import json
 
 import httpx
@@ -21,7 +15,6 @@ ANTI_HALLUCINATION_SYSTEM = """তুমি পশ্চিমবঙ্গের
 4. সহজ কথ্য বাংলায় উত্তর দাও। ছোট ছোট বাক্য।
 5. প্রতিটি তথ্যের সাথে কোন প্রকল্পের নথি থেকে নেওয়া তা উল্লেখ করো।"""
 
-
 async def get_embedding(text_input: str) -> list[float]:
     s = get_settings()
     async with httpx.AsyncClient(timeout=30.0) as client:
@@ -31,9 +24,8 @@ async def get_embedding(text_input: str) -> list[float]:
         )
         return r.json()["embedding"]
 
-
 def _reciprocal_rank_fusion(vector_rows: list, fts_rows: list, k: int = 60, top_n: int = 5) -> list[dict]:
-    """Merge two ranked result sets by reciprocal-rank score, dedup by chunk id."""
+
     scores: dict[str, float] = {}
     rows_by_id: dict[str, dict] = {}
 
@@ -47,7 +39,6 @@ def _reciprocal_rank_fusion(vector_rows: list, fts_rows: list, k: int = 60, top_
 
     ranked_ids = sorted(scores, key=scores.get, reverse=True)[:top_n]
     return [rows_by_id[i] for i in ranked_ids]
-
 
 async def query_scheme_rag(query: str, user_context: dict, scheme_filter: list[str] | None = None) -> dict:
     from shared.db.session import get_db_session
@@ -103,14 +94,8 @@ async def query_scheme_rag(query: str, user_context: dict, scheme_filter: list[s
     answer = await _generate(context, query, user_context)
     return {"answer_bengali": answer, "citations_full": merged}
 
-
 async def _generate(context: str, query: str, user_context: dict) -> str:
-    """
-    Generation for scheme answers is always Claude (SAFETY_CRITICAL) — routed
-    through services/orchestrator/model_router.py from the calling node, not
-    duplicated here. This function is the pure retrieval-to-prompt assembly;
-    services/orchestrator/nodes/scheme_rag_node.py owns the model choice.
-    """
+
     from services.orchestrator.model_router import route_completion, TaskCriticality
 
     prompt = f"""CONTEXT:
