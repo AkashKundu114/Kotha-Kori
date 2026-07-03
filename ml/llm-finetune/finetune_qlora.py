@@ -4,17 +4,18 @@ from trl import SFTTrainer
 from transformers import TrainingArguments
 import torch, yaml, argparse
 
+
 def load_config(path: str) -> dict:
     with open(path) as f:
         return yaml.safe_load(f)
 
-def prepare_dataset(dataset_path: str):
 
+def prepare_dataset(dataset_path: str):
     dataset = load_dataset("json", data_files=dataset_path, split="train")
     return dataset
 
-def format_prompt(example: dict) -> dict:
 
+def format_prompt(example: dict) -> dict:
     text = (
         "<|im_start|>system\n"
         "তুমি কোথা-খাতার AI সহায়ক। তুমি পশ্চিমবঙ্গের স্বনির্ভর গোষ্ঠীর মহিলাদের জন্য বাংলায় সাহায্য করো।<|im_end|>\n"
@@ -25,6 +26,7 @@ def format_prompt(example: dict) -> dict:
         f"{example['output']}<|im_end|>"
     )
     return {"text": text}
+
 
 def main(config_path: str):
     config = load_config(config_path)
@@ -40,8 +42,13 @@ def main(config_path: str):
         model,
         r=16,
         target_modules=[
-            "q_proj", "k_proj", "v_proj", "o_proj",
-            "gate_proj", "up_proj", "down_proj"
+            "q_proj",
+            "k_proj",
+            "v_proj",
+            "o_proj",
+            "gate_proj",
+            "up_proj",
+            "down_proj",
         ],
         lora_alpha=16,
         lora_dropout=0.05,
@@ -77,11 +84,10 @@ def main(config_path: str):
     trainer.train()
 
     model.save_pretrained_gguf(
-        "models/kotha-khata-qwen",
-        tokenizer,
-        quantization_method="q4_k_m"
+        "models/kotha-khata-qwen", tokenizer, quantization_method="q4_k_m"
     )
     print("✅ Model saved. Run: ollama create kotha-khata-qwen -f Modelfile")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

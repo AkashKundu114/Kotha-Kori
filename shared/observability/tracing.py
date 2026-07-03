@@ -9,6 +9,7 @@ from shared.config.settings import get_settings
 
 _client: Langfuse | None = None
 
+
 def get_langfuse_client() -> Langfuse | None:
     global _client
     s = get_settings()
@@ -21,6 +22,7 @@ def get_langfuse_client() -> Langfuse | None:
             host=s.langfuse_host,
         )
     return _client
+
 
 def traced(name: str):
     def decorator(fn):
@@ -35,7 +37,11 @@ def traced(name: str):
                 if client:
                     client.trace(
                         name=name,
-                        metadata={"duration_seconds": round(time.monotonic() - start, 3)},
+                        metadata={
+                            "duration_seconds": round(time.monotonic() - start, 3)
+                        },
                     )
+
         return wrapper
+
     return decorator

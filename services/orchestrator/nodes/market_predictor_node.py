@@ -12,13 +12,17 @@ PHRASING_SYSTEM = (
     "ব্যবহার করো, নতুন কোনো পণ্য বা সংখ্যা তৈরি করো না।"
 )
 
+
 async def market_predictor_node(state: ConversationState) -> dict:
     profile = state.get("user_profile") or {}
     block = profile.get("block")
     if not block:
         return {
             "outbound_messages": [
-                {"type": "text", "body": "আপনার ব্লকের তথ্য নেই। অনুগ্রহ করে প্রোফাইল আপডেট করুন।"}
+                {
+                    "type": "text",
+                    "body": "আপনার ব্লকের তথ্য নেই। অনুগ্রহ করে প্রোফাইল আপডেট করুন।",
+                }
             ],
             "trace": ["market_predictor_node:no_block"],
         }
@@ -37,8 +41,11 @@ async def market_predictor_node(state: ConversationState) -> dict:
     return {
         "market_report": report,
         "outbound_messages": [{"type": "text", "body": phrased}],
-        "trace": [f"market_predictor_node:done:rising={len(report['rising'])}:saturated={len(report['saturated'])}"],
+        "trace": [
+            f"market_predictor_node:done:rising={len(report['rising'])}:saturated={len(report['saturated'])}"
+        ],
     }
+
 
 async def _build_report(block: str) -> dict:
     trend_rows = await block_sales_trend(block)
@@ -58,7 +65,13 @@ async def _build_report(block: str) -> dict:
 
     mandi_prices = await fetch_mandi_prices(district=block)
 
-    return {"block": block, "rising": rising, "saturated": saturated, "mandi_prices": mandi_prices}
+    return {
+        "block": block,
+        "rising": rising,
+        "saturated": saturated,
+        "mandi_prices": mandi_prices,
+    }
+
 
 async def _phrase_report(report: dict) -> str:
     prompt = (
@@ -68,6 +81,9 @@ async def _phrase_report(report: dict) -> str:
         "উপরের তথ্যের ভিত্তিতে সাপ্তাহিক বাজার পরামর্শ লেখো।"
     )
     result = await route_completion(
-        system=PHRASING_SYSTEM, prompt=prompt, criticality=TaskCriticality.ROUTINE, confidence_floor=0.0
+        system=PHRASING_SYSTEM,
+        prompt=prompt,
+        criticality=TaskCriticality.ROUTINE,
+        confidence_floor=0.0,
     )
     return result["text"].strip()

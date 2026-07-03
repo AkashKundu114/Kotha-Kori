@@ -9,11 +9,12 @@ ANTI_HALLUCINATION_SYSTEM = (
     "তুমি পশ্চিমবঙ্গের স্বনির্ভর গোষ্ঠীর মহিলাদের সরকারি প্রকল্প সহায়ক।\n\n"
     "কঠোর নিয়ম:\n"
     "1. শুধুমাত্র নিচে দেওয়া CONTEXT থেকে উত্তর দাও।\n"
-    "2. Context-এ উত্তর না থাকলে: \"এ বিষয়ে নিশ্চিত তথ্য নেই। পঞ্চায়েত অফিসে জিজ্ঞেস করুন।\"\n"
+    '2. Context-এ উত্তর না থাকলে: "এ বিষয়ে নিশ্চিত তথ্য নেই। পঞ্চায়েত অফিসে জিজ্ঞেস করুন।"\n'
     "3. টাকার পরিমাণ, যোগ্যতার শর্ত বা তারিখ কখনো অনুমান করো না।\n"
     "4. সহজ কথ্য বাংলায় উত্তর দাও। ছোট ছোট বাক্য।\n"
     "5. প্রতিটি তথ্যের সাথে কোন প্রকল্পের নথি থেকে নেওয়া তা উল্লেখ করো।"
 )
+
 
 async def get_embedding(text_input: str) -> list[float]:
     s = get_settings()
@@ -24,8 +25,10 @@ async def get_embedding(text_input: str) -> list[float]:
         )
         return r.json()["embedding"]
 
-def _reciprocal_rank_fusion(vector_rows: list, fts_rows: list, k: int = 60, top_n: int = 5) -> list[dict]:
 
+def _reciprocal_rank_fusion(
+    vector_rows: list, fts_rows: list, k: int = 60, top_n: int = 5
+) -> list[dict]:
     scores: dict[str, float] = {}
     rows_by_id: dict[str, dict] = {}
 
@@ -40,7 +43,10 @@ def _reciprocal_rank_fusion(vector_rows: list, fts_rows: list, k: int = 60, top_
     ranked_ids = sorted(scores, key=scores.get, reverse=True)[:top_n]
     return [rows_by_id[i] for i in ranked_ids]
 
-async def query_scheme_rag(query: str, user_context: dict, scheme_filter: list[str] | None = None) -> dict:
+
+async def query_scheme_rag(
+    query: str, user_context: dict, scheme_filter: list[str] | None = None
+) -> dict:
     from shared.db.session import get_db_session
 
     embedding = await get_embedding(query)
@@ -93,13 +99,16 @@ async def query_scheme_rag(query: str, user_context: dict, scheme_filter: list[s
         fallback = "এ বিষয়ে নিশ্চিত তথ্য নেই। পঞ্চায়েত অফিসে জিজ্ঞেস করুন।"
         return {"answer_bengali": fallback, "citations_full": []}
 
-    context = "\n\n---\n\n".join(f"[{c['scheme_name']}]\n{c.get('chunk_bengali') or c['chunk_text']}" for c in merged)
+    context = "\n\n---\n\n".join(
+        f"[{c['scheme_name']}]\n{c.get('chunk_bengali') or c['chunk_text']}"
+        for c in merged
+    )
 
     answer = await _generate(context, query, user_context)
     return {"answer_bengali": answer, "citations_full": merged}
 
-async def _generate(context: str, query: str, user_context: dict) -> str:
 
+async def _generate(context: str, query: str, user_context: dict) -> str:
     from services.orchestrator.model_router import route_completion, TaskCriticality
 
     prompt = (
@@ -110,6 +119,8 @@ async def _generate(context: str, query: str, user_context: dict) -> str:
     )
 
     result = await route_completion(
-        system=ANTI_HALLUCINATION_SYSTEM, prompt=prompt, criticality=TaskCriticality.SAFETY_CRITICAL
+        system=ANTI_HALLUCINATION_SYSTEM,
+        prompt=prompt,
+        criticality=TaskCriticality.SAFETY_CRITICAL,
     )
     return result["text"]

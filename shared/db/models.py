@@ -3,12 +3,23 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import ForeignKey, String, Numeric, Boolean, Text, Integer, ARRAY, DateTime
+from sqlalchemy import (
+    ForeignKey,
+    String,
+    Numeric,
+    Boolean,
+    Text,
+    Integer,
+    ARRAY,
+    DateTime,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
+
 class Base(DeclarativeBase):
     pass
+
 
 class SHGGroup(Base):
     __tablename__ = "shg_groups"
@@ -19,20 +30,27 @@ class SHGGroup(Base):
     block: Mapped[str | None] = mapped_column(String(100))
     grade_level: Mapped[int | None] = mapped_column(Integer)
     total_members: Mapped[int | None] = mapped_column(Integer)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=datetime.utcnow
+    )
+
 
 class User(Base):
     __tablename__ = "users"
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    whatsapp_number: Mapped[str] = mapped_column(String(15), unique=True, nullable=False)
+    whatsapp_number: Mapped[str] = mapped_column(
+        String(15), unique=True, nullable=False
+    )
     name: Mapped[str | None] = mapped_column(String(255))
     shg_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("shg_groups.id"))
     district: Mapped[str | None] = mapped_column(String(100))
     block: Mapped[str | None] = mapped_column(String(100))
     consent_given: Mapped[bool] = mapped_column(Boolean, default=False)
     consent_given_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    onboarded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    onboarded_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=datetime.utcnow
+    )
     last_active_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     business_categories: Mapped[list[str] | None] = mapped_column(ARRAY(String))
@@ -43,12 +61,15 @@ class User(Base):
     sessions_count: Mapped[int] = mapped_column(Integer, default=0)
     trust_stage: Mapped[str] = mapped_column(String(15), default="new")
 
+
 class LedgerEntry(Base):
     __tablename__ = "ledger_entries"
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
-    entry_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    entry_date: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=datetime.utcnow
+    )
     entry_type: Mapped[str] = mapped_column(String(10))
     amount_inr: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
     category: Mapped[str | None] = mapped_column(String(100))
@@ -57,12 +78,16 @@ class LedgerEntry(Base):
     unit: Mapped[str | None] = mapped_column(String(20))
     raw_transcript: Mapped[str | None] = mapped_column(Text)
     is_corrected: Mapped[bool] = mapped_column(Boolean, default=False)
-    correction_of: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("ledger_entries.id"))
+    correction_of: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("ledger_entries.id")
+    )
     extracted_by: Mapped[str | None] = mapped_column(String(20))
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=datetime.utcnow
+    )
+
 
 class CatalogCreation(Base):
-
     __tablename__ = "catalog_creations"
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
@@ -77,10 +102,12 @@ class CatalogCreation(Base):
 
     user_reported_shared: Mapped[bool | None] = mapped_column(Boolean)
     user_reported_sale_resulted: Mapped[bool | None] = mapped_column(Boolean)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=datetime.utcnow
+    )
+
 
 class MarketPrice(Base):
-
     __tablename__ = "market_prices"
 
     time: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True)

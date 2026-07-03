@@ -12,17 +12,19 @@ _BG_BOTTOM = (232, 220, 198)
 
 MIN_RESOLUTION_PX = 300
 
+
 def _get_session():
     global _session
     if _session is None:
         _session = new_session("u2net")
     return _session
 
-def _quality_check(img: Image.Image) -> str | None:
 
+def _quality_check(img: Image.Image) -> str | None:
     if min(img.size) < MIN_RESOLUTION_PX:
         return "ছবিটা একটু ছোট বা অস্পষ্ট। আরো কাছ থেকে, ভালো আলোয় তুলুন।"
     return None
+
 
 def _gradient_background(size: tuple[int, int]) -> Image.Image:
     w, h = size
@@ -37,8 +39,8 @@ def _gradient_background(size: tuple[int, int]) -> Image.Image:
             pixels[x, y] = (r, g, b)
     return bg
 
-def process_product_image(raw_bytes: bytes) -> tuple[bytes | None, str | None]:
 
+def process_product_image(raw_bytes: bytes) -> tuple[bytes | None, str | None]:
     try:
         img = Image.open(io.BytesIO(raw_bytes)).convert("RGB")
     except Exception:

@@ -3,6 +3,7 @@ from shared.config.settings import get_settings
 
 WA_API = "https://graph.facebook.com/v19.0/{phone_id}/messages"
 
+
 async def send_text(to: str, body: str) -> dict:
     s = get_settings()
     async with httpx.AsyncClient() as client:
@@ -19,6 +20,7 @@ async def send_text(to: str, body: str) -> dict:
         )
     return r.json()
 
+
 async def send_document(to: str, url: str, filename: str, caption: str = "") -> dict:
     s = get_settings()
     async with httpx.AsyncClient() as client:
@@ -33,6 +35,7 @@ async def send_document(to: str, url: str, filename: str, caption: str = "") -> 
             },
         )
     return r.json()
+
 
 async def send_image(to: str, url: str, caption: str = "") -> dict:
     s = get_settings()
@@ -49,7 +52,10 @@ async def send_image(to: str, url: str, caption: str = "") -> dict:
         )
     return r.json()
 
-async def send_flow(to: str, flow_id: str, flow_cta: str, flow_token: str, screen: str) -> dict:
+
+async def send_flow(
+    to: str, flow_id: str, flow_cta: str, flow_token: str, screen: str
+) -> dict:
     s = get_settings()
     async with httpx.AsyncClient() as client:
         r = await client.post(

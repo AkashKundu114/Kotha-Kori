@@ -6,8 +6,14 @@ from services.rag_service.grounding_verifier import verify_grounding
 
 FALLBACK_BENGALI = "এ বিষয়ে নিশ্চিত তথ্য নেই। পঞ্চায়েত অফিসে জিজ্ঞেস করুন।"
 
+
 async def scheme_rag_node(state: ConversationState) -> dict:
-    query = state.get("scheme_query") or state.get("raw_input_text") or state.get("raw_input_transcript") or ""
+    query = (
+        state.get("scheme_query")
+        or state.get("raw_input_text")
+        or state.get("raw_input_transcript")
+        or ""
+    )
 
     rag_result = await query_scheme_rag(
         query=query,
@@ -23,7 +29,6 @@ async def scheme_rag_node(state: ConversationState) -> dict:
     if grounding["all_grounded"]:
         final_answer = rag_result["answer_bengali"]
     else:
-
         final_answer = FALLBACK_BENGALI
 
     return {

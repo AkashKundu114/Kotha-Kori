@@ -8,8 +8,8 @@ from shared.db.session import get_db_session
 
 MIN_SAMPLE_SIZE = 5
 
-async def block_sales_trend(block: str, weeks_back: int = 8) -> list[dict]:
 
+async def block_sales_trend(block: str, weeks_back: int = 8) -> list[dict]:
     since = date.today() - timedelta(weeks=weeks_back)
 
     async with get_db_session() as db:
@@ -46,8 +46,8 @@ async def block_sales_trend(block: str, weeks_back: int = 8) -> list[dict]:
         for r in rows
     ]
 
-def classify_trend(weekly_series: list[dict]) -> str:
 
+def classify_trend(weekly_series: list[dict]) -> str:
     if len(weekly_series) < 2:
         return "insufficient_data"
     recent = weekly_series[0]["total_amount"]

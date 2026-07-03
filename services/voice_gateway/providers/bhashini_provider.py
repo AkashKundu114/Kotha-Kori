@@ -5,6 +5,7 @@ from shared.config.settings import get_settings
 
 BHASHINI_PIPELINE_URL = "https://dhruva-api.bhashini.gov.in/services/inference/pipeline"
 
+
 async def transcribe(audio_bytes: bytes, language: str = "bn") -> dict:
     s = get_settings()
     if not s.bhashini_api_key:

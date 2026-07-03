@@ -11,10 +11,10 @@ from services.orchestrator.model_router import (
 
 VISION_PROMPT = (
     "এই ছবিতে কী পণ্য দেখছ? শুধুমাত্র এই JSON ফরম্যাটে ফেরত দাও:\n"
-    "{\"product_type\": \"<ইংরেজিতে সংক্ষিপ্ত, যেমন 'kantha saree'>\",\n"
-    " \"material\": \"<যদি বোঝা যায়>\",\n"
-    " \"notable_features\": [\"<২-৩টি লক্ষণীয় বৈশিষ্ট্য>\"],\n"
-    " \"category\": \"<textile|food|handicraft|agriculture|other>\"}"
+    '{"product_type": "<ইংরেজিতে সংক্ষিপ্ত, যেমন \'kantha saree\'>",\n'
+    ' "material": "<যদি বোঝা যায়>",\n'
+    ' "notable_features": ["<২-৩টি লক্ষণীয় বৈশিষ্ট্য>"],\n'
+    ' "category": "<textile|food|handicraft|agriculture|other>"}'
 )
 
 CAPTION_SYSTEM = (
@@ -35,10 +35,12 @@ _PRICE_RANGES = {
     "other": (100, 600),
 }
 
-async def analyze_product_image(image_bytes: bytes) -> dict:
 
+async def analyze_product_image(image_bytes: bytes) -> dict:
     result = await route_vision_completion(
-        prompt=VISION_PROMPT, image_bytes=image_bytes, criticality=TaskCriticality.ROUTINE
+        prompt=VISION_PROMPT,
+        image_bytes=image_bytes,
+        criticality=TaskCriticality.ROUTINE,
     )
     try:
         parsed = json.loads(re.sub(r"```json|```", "", result["text"]).strip())
@@ -49,8 +51,10 @@ async def analyze_product_image(image_bytes: bytes) -> dict:
     parsed.setdefault("category", "other")
     return parsed
 
-async def generate_caption(product_info: dict, shg_name: str = "") -> tuple[str, tuple[float, float]]:
 
+async def generate_caption(
+    product_info: dict, shg_name: str = ""
+) -> tuple[str, tuple[float, float]]:
     category = product_info.get("category", "other")
     price_min, price_max = _PRICE_RANGES.get(category, _PRICE_RANGES["other"])
 
@@ -61,7 +65,10 @@ async def generate_caption(product_info: dict, shg_name: str = "") -> tuple[str,
         "উপরের তথ্যের ভিত্তিতে বিক্রির বার্তা লেখো।"
     )
     result = await route_completion(
-        system=CAPTION_SYSTEM, prompt=prompt, criticality=TaskCriticality.ROUTINE, confidence_floor=0.0
+        system=CAPTION_SYSTEM,
+        prompt=prompt,
+        criticality=TaskCriticality.ROUTINE,
+        confidence_floor=0.0,
     )
 
     return result["text"].strip(), (price_min, price_max)

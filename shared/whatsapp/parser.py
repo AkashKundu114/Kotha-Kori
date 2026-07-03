@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import Optional, Literal
 
+
 @dataclass
 class IncomingMessage:
     message_id: str
@@ -13,6 +14,7 @@ class IncomingMessage:
     image_id: Optional[str] = None
     caption: Optional[str] = None
     interactive_payload: Optional[dict] = None
+
 
 def parse_webhook_payload(payload: dict) -> Optional[IncomingMessage]:
     try:
@@ -37,10 +39,15 @@ def parse_webhook_payload(payload: dict) -> Optional[IncomingMessage]:
         elif msg["type"] == "image":
             base.image_id = msg["image"]["id"]
             base.caption = msg.get("image", {}).get("caption")
-        elif msg["type"] == "interactive" and msg["interactive"].get("type") == "nfm_reply":
+        elif (
+            msg["type"] == "interactive"
+            and msg["interactive"].get("type") == "nfm_reply"
+        ):
             import json
 
-            base.interactive_payload = json.loads(msg["interactive"]["nfm_reply"]["response_json"])
+            base.interactive_payload = json.loads(
+                msg["interactive"]["nfm_reply"]["response_json"]
+            )
 
         return base
     except (KeyError, IndexError):

@@ -5,20 +5,26 @@ import json
 from enum import Enum
 
 import httpx
-import anthropic
+from openai import AsyncOpenAI
 
 from shared.config.settings import get_settings
 
-CLAUDE_MODEL = "claude-sonnet-4-6"
-CLAUDE_VISION_MODEL = "claude-sonnet-4-6"
 
 class TaskCriticality(str, Enum):
-
     SAFETY_CRITICAL = "safety_critical"
 
     ROUTINE = "routine"
 
+
+def _openai_client() -> AsyncOpenAI:
+    s = get_settings()
+    return AsyncOpenAI(api_key=s.openai_api_key)
+
+
 async def _call_local_qwen(system: str, prompt: str) -> tuple[str, float]:
+    """Only used if OLLAMA/local models are actually deployed (use_local_models=True
+    in settings). On a GPU-less DO deployment this is skipped entirely so a routine
+    call never wastes a 30s timeout waiting on a host that was never provisioned."""
 
     s = get_settings()
     async with httpx.AsyncClient(timeout=30.0) as client:
@@ -37,21 +43,27 @@ async def _call_local_qwen(system: str, prompt: str) -> tuple[str, float]:
     confidence = 0.0
     try:
         parsed = json.loads(text)
-        confidence = float(parsed.get("confidence", parsed.get("overall_confidence", 0.0)))
+        confidence = float(
+            parsed.get("confidence", parsed.get("overall_confidence", 0.0))
+        )
     except (json.JSONDecodeError, TypeError, ValueError):
         pass
     return text, confidence
 
-async def _call_claude(system: str, prompt: str, max_tokens: int = 800) -> str:
+
+async def _call_openai(system: str, prompt: str, max_tokens: int = 800) -> str:
     s = get_settings()
-    client = anthropic.AsyncAnthropic(api_key=s.anthropic_api_key)
-    message = await client.messages.create(
-        model=CLAUDE_MODEL,
+    client = _openai_client()
+    response = await client.chat.completions.create(
+        model=s.openai_model,
         max_tokens=max_tokens,
-        system=system,
-        messages=[{"role": "user", "content": prompt}],
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": prompt},
+        ],
     )
-    return "".join(b.text for b in message.content if b.type == "text").strip()
+    return (response.choices[0].message.content or "").strip()
+
 
 async def route_completion(
     *,
@@ -60,19 +72,22 @@ async def route_completion(
     criticality: TaskCriticality,
     confidence_floor: float = 0.80,
 ) -> dict:
-
     if criticality == TaskCriticality.SAFETY_CRITICAL:
-        text = await _call_claude(system, prompt)
-        return {"text": text, "model_used": "claude", "escalated": False}
+        text = await _call_openai(system, prompt)
+        return {"text": text, "model_used": "openai", "escalated": False}
 
-    text, local_confidence = await _call_local_qwen(system, prompt)
-    if local_confidence >= confidence_floor:
-        return {"text": text, "model_used": "qwen-local", "escalated": False}
+    s = get_settings()
+    if s.use_local_models:
+        text, local_confidence = await _call_local_qwen(system, prompt)
+        if local_confidence >= confidence_floor:
+            return {"text": text, "model_used": "qwen-local", "escalated": False}
 
-    text = await _call_claude(system, prompt)
-    return {"text": text, "model_used": "claude", "escalated": True}
+    text = await _call_openai(system, prompt)
+    return {"text": text, "model_used": "openai", "escalated": True}
+
 
 async def _call_local_vision(prompt: str, image_bytes: bytes) -> tuple[str, bool]:
+    """Only used if use_local_models=True — see _call_local_qwen note above."""
 
     s = get_settings()
     image_b64 = base64.b64encode(image_bytes).decode()
@@ -93,34 +108,42 @@ async def _call_local_vision(prompt: str, image_bytes: bytes) -> tuple[str, bool
     except (httpx.HTTPError, KeyError, ValueError):
         return "", False
 
-async def _call_claude_vision(prompt: str, image_bytes: bytes, media_type: str = "image/jpeg") -> str:
+
+async def _call_openai_vision(
+    prompt: str, image_bytes: bytes, media_type: str = "image/jpeg"
+) -> str:
     s = get_settings()
-    client = anthropic.AsyncAnthropic(api_key=s.anthropic_api_key)
+    client = _openai_client()
     image_b64 = base64.b64encode(image_bytes).decode()
-    message = await client.messages.create(
-        model=CLAUDE_VISION_MODEL,
+    data_url = f"data:{media_type};base64,{image_b64}"
+    response = await client.chat.completions.create(
+        model=s.openai_vision_model,
         max_tokens=600,
         messages=[
             {
                 "role": "user",
                 "content": [
-                    {"type": "image", "source": {"type": "base64", "media_type": media_type, "data": image_b64}},
                     {"type": "text", "text": prompt},
+                    {"type": "image_url", "image_url": {"url": data_url}},
                 ],
             }
         ],
     )
-    return "".join(b.text for b in message.content if b.type == "text").strip()
+    return (response.choices[0].message.content or "").strip()
 
-async def route_vision_completion(*, prompt: str, image_bytes: bytes, criticality: TaskCriticality) -> dict:
 
+async def route_vision_completion(
+    *, prompt: str, image_bytes: bytes, criticality: TaskCriticality
+) -> dict:
     if criticality == TaskCriticality.SAFETY_CRITICAL:
-        text = await _call_claude_vision(prompt, image_bytes)
-        return {"text": text, "model_used": "claude-vision", "escalated": False}
+        text = await _call_openai_vision(prompt, image_bytes)
+        return {"text": text, "model_used": "openai-vision", "escalated": False}
 
-    text, ok = await _call_local_vision(prompt, image_bytes)
-    if ok:
-        return {"text": text, "model_used": "ollama-qwen2vl", "escalated": False}
+    s = get_settings()
+    if s.use_local_models:
+        text, ok = await _call_local_vision(prompt, image_bytes)
+        if ok:
+            return {"text": text, "model_used": "ollama-qwen2vl", "escalated": False}
 
-    text = await _call_claude_vision(prompt, image_bytes)
-    return {"text": text, "model_used": "claude-vision", "escalated": True}
+    text = await _call_openai_vision(prompt, image_bytes)
+    return {"text": text, "model_used": "openai-vision", "escalated": True}

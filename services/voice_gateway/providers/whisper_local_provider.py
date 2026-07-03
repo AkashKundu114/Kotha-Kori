@@ -4,12 +4,18 @@ from shared.config.settings import get_settings
 
 _model: WhisperModel | None = None
 
+
 def _get_model() -> WhisperModel:
     global _model
     if _model is None:
         s = get_settings()
-        _model = WhisperModel(s.whisper_model_path, device=s.whisper_device, compute_type=s.whisper_compute_type)
+        _model = WhisperModel(
+            s.whisper_model_path,
+            device=s.whisper_device,
+            compute_type=s.whisper_compute_type,
+        )
     return _model
+
 
 async def transcribe(audio_bytes: bytes, language: str = "bn") -> dict:
     import tempfile
@@ -22,7 +28,11 @@ async def transcribe(audio_bytes: bytes, language: str = "bn") -> dict:
     try:
         model = _get_model()
         segments, info = model.transcribe(
-            wav_path, language=language, beam_size=5, vad_filter=True, condition_on_previous_text=False
+            wav_path,
+            language=language,
+            beam_size=5,
+            vad_filter=True,
+            condition_on_previous_text=False,
         )
         segments = list(segments)
         transcript = " ".join(seg.text.strip() for seg in segments)

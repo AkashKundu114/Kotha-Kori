@@ -5,8 +5,10 @@ from shared.config.settings import get_settings
 MAX_AUDIO_BYTES = 6 * 1024 * 1024
 MAX_IMAGE_BYTES = 5 * 1024 * 1024
 
+
 class MediaTooLargeError(Exception):
     pass
+
 
 async def _download(media_id: str, max_bytes: int | None = None) -> bytes:
     s = get_settings()
@@ -29,7 +31,9 @@ async def _download(media_id: str, max_bytes: int | None = None) -> bytes:
                 pass
 
         download_url = meta["url"]
-        media_resp = await client.get(download_url, headers={"Authorization": f"Bearer {s.wa_access_token}"})
+        media_resp = await client.get(
+            download_url, headers={"Authorization": f"Bearer {s.wa_access_token}"}
+        )
         media_resp.raise_for_status()
 
         if max_bytes and len(media_resp.content) > max_bytes:
@@ -39,8 +43,10 @@ async def _download(media_id: str, max_bytes: int | None = None) -> bytes:
 
         return media_resp.content
 
+
 async def download_whatsapp_audio(media_id: str) -> bytes:
     return await _download(media_id, max_bytes=MAX_AUDIO_BYTES)
+
 
 async def download_whatsapp_image(media_id: str) -> bytes:
     return await _download(media_id, max_bytes=MAX_IMAGE_BYTES)

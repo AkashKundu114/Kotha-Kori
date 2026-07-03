@@ -4,6 +4,7 @@ import subprocess, tempfile, os
 
 _model: WhisperModel | None = None
 
+
 def get_model() -> WhisperModel:
     global _model
     if _model is None:
@@ -15,23 +16,40 @@ def get_model() -> WhisperModel:
         )
     return _model
 
+
 def ogg_to_wav(ogg_bytes: bytes) -> bytes:
     with tempfile.NamedTemporaryFile(suffix=".ogg", delete=False) as f:
-        f.write(ogg_bytes); ogg = f.name
+        f.write(ogg_bytes)
+        ogg = f.name
     wav = ogg.replace(".ogg", ".wav")
     subprocess.run(
-        ["ffmpeg", "-i", ogg, "-ar", "16000", "-ac", "1", wav, "-y", "-loglevel", "error"],
-        check=True
+        [
+            "ffmpeg",
+            "-i",
+            ogg,
+            "-ar",
+            "16000",
+            "-ac",
+            "1",
+            wav,
+            "-y",
+            "-loglevel",
+            "error",
+        ],
+        check=True,
     )
-    with open(wav, "rb") as f: data = f.read()
-    os.unlink(ogg); os.unlink(wav)
+    with open(wav, "rb") as f:
+        data = f.read()
+    os.unlink(ogg)
+    os.unlink(wav)
     return data
 
-def transcribe(audio_bytes: bytes) -> dict:
 
+def transcribe(audio_bytes: bytes) -> dict:
     wav_bytes = ogg_to_wav(audio_bytes)
     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
-        f.write(wav_bytes); wav_path = f.name
+        f.write(wav_bytes)
+        wav_path = f.name
 
     model = get_model()
     segments, info = model.transcribe(
@@ -41,7 +59,7 @@ def transcribe(audio_bytes: bytes) -> dict:
         word_timestamps=True,
         condition_on_previous_text=False,
         vad_filter=True,
-        vad_parameters={"min_silence_duration_ms": 500}
+        vad_parameters={"min_silence_duration_ms": 500},
     )
 
     transcript = " ".join(seg.text.strip() for seg in segments)
@@ -53,5 +71,5 @@ def transcribe(audio_bytes: bytes) -> dict:
         "transcript": transcript.strip(),
         "confidence": round(confidence, 3),
         "language": info.language,
-        "provider": "whisper-finetuned"
+        "provider": "whisper-finetuned",
     }

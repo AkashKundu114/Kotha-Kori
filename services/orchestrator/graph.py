@@ -14,15 +14,18 @@ from services.orchestrator.nodes.catalog_node import catalog_node
 from services.orchestrator.nodes.market_predictor_node import market_predictor_node
 from shared.config.settings import get_settings
 
-def _route_after_profile_load(state: ConversationState) -> str:
 
-    if state.get("is_new_user") or (state.get("onboarding_step") and state["onboarding_step"] != "DONE"):
+def _route_after_profile_load(state: ConversationState) -> str:
+    if state.get("is_new_user") or (
+        state.get("onboarding_step") and state["onboarding_step"] != "DONE"
+    ):
         return "onboarding"
     if state.get("awaiting_confirmation"):
         return "ledger_confirm"
     if state.get("last_message_type") == "image":
         return "catalog"
     return "classify_intent"
+
 
 def _route_after_intent(state: ConversationState) -> str:
     feature = state.get("active_feature", "IDLE")
@@ -34,12 +37,14 @@ def _route_after_intent(state: ConversationState) -> str:
         return "market"
     return "unhandled"
 
+
 async def _unhandled_node(state: ConversationState) -> dict:
-    msg = (
-        "আমি হিসাব রাখতে, পণ্যের বিজ্ঞাপন বানাতে, আর বাজারের "
-        "পরামর্শ দিতে পারি। কি দরকার আপনার?"
-    )
-    return {"outbound_messages": [{"type": "text", "body": msg}], "trace": ["unhandled_node"]}
+    msg = "আমি হিসাব রাখতে, পণ্যের বিজ্ঞাপন বানাতে, আর বাজারের " "পরামর্শ দিতে পারি। কি দরকার আপনার?"
+    return {
+        "outbound_messages": [{"type": "text", "body": msg}],
+        "trace": ["unhandled_node"],
+    }
+
 
 def build_graph() -> StateGraph:
     graph = StateGraph(ConversationState)
@@ -68,7 +73,12 @@ def build_graph() -> StateGraph:
     graph.add_conditional_edges(
         "classify_intent",
         _route_after_intent,
-        {"ledger": "ledger", "ledger_report": "ledger_report", "market": "market", "unhandled": "unhandled"},
+        {
+            "ledger": "ledger",
+            "ledger_report": "ledger_report",
+            "market": "market",
+            "unhandled": "unhandled",
+        },
     )
     graph.add_edge("onboarding", END)
     graph.add_edge("ledger", END)
@@ -79,6 +89,7 @@ def build_graph() -> StateGraph:
     graph.add_edge("unhandled", END)
 
     return graph
+
 
 async def get_compiled_graph():
     s = get_settings()

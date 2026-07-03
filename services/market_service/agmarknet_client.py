@@ -4,10 +4,12 @@ import httpx
 
 from shared.config.settings import get_settings
 
-_AGMARKNET_RESOURCE_URL = "https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070"
+_AGMARKNET_RESOURCE_URL = (
+    "https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070"
+)
+
 
 async def fetch_mandi_prices(district: str, commodity: str | None = None) -> list[dict]:
-
     s = get_settings()
     api_key = getattr(s, "data_gov_in_api_key", "") or ""
     if not api_key:
@@ -32,6 +34,7 @@ async def fetch_mandi_prices(district: str, commodity: str | None = None) -> lis
         return []
 
     return _parse_response(body)
+
 
 def _parse_response(body: dict) -> list[dict]:
     records = body.get("records", [])

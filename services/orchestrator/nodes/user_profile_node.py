@@ -6,17 +6,24 @@ from services.orchestrator.state import ConversationState
 from shared.db.models import User
 from shared.db.session import get_db_session
 
+
 async def load_user_profile_node(state: ConversationState) -> dict:
     whatsapp_number = state["whatsapp_number"]
 
     async with get_db_session() as db:
         user = (
-            await db.execute(select(User).where(User.whatsapp_number == whatsapp_number))
+            await db.execute(
+                select(User).where(User.whatsapp_number == whatsapp_number)
+            )
         ).scalar_one_or_none()
 
     if user is None:
-
-        return {"is_new_user": True, "user_id": None, "user_profile": None, "trace": ["load_user_profile:new_user"]}
+        return {
+            "is_new_user": True,
+            "user_id": None,
+            "user_profile": None,
+            "trace": ["load_user_profile:new_user"],
+        }
 
     profile = {
         "business_categories": user.business_categories or [],

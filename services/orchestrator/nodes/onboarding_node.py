@@ -9,12 +9,14 @@ WELCOME = (
     "শুরু করতে আপনার নাম বলুন।"
 )
 
+
 async def onboarding_node(state: ConversationState) -> dict:
     step = state.get("onboarding_step", "WELCOME")
-    text = (state.get("raw_input_text") or state.get("raw_input_transcript") or "").strip()
+    text = (
+        state.get("raw_input_text") or state.get("raw_input_transcript") or ""
+    ).strip()
 
     if step == "WELCOME":
-
         return {
             "onboarding_step": "AWAIT_NAME",
             "outbound_messages": [{"type": "text", "body": WELCOME}],
@@ -25,7 +27,9 @@ async def onboarding_node(state: ConversationState) -> dict:
         return {
             "onboarding_name": text,
             "onboarding_step": "AWAIT_BLOCK",
-            "outbound_messages": [{"type": "text", "body": f"{text} দি, আপনি কোন ব্লকে থাকেন?"}],
+            "outbound_messages": [
+                {"type": "text", "body": f"{text} দি, আপনি কোন ব্লকে থাকেন?"}
+            ],
             "trace": ["onboarding_node:got_name"],
         }
 
@@ -51,7 +55,9 @@ async def onboarding_node(state: ConversationState) -> dict:
     if step == "AWAIT_CONSENT":
         if text.lower() not in {"হ্যাঁ", "হ্যা", "ha", "haan", "yes"}:
             return {
-                "outbound_messages": [{"type": "text", "body": "রাজি হলে 'হ্যাঁ' লিখুন, তাহলে শুরু করতে পারব।"}],
+                "outbound_messages": [
+                    {"type": "text", "body": "রাজি হলে 'হ্যাঁ' লিখুন, তাহলে শুরু করতে পারব।"}
+                ],
                 "trace": ["onboarding_node:consent_not_given"],
             }
         user_id = await _create_user(state)
@@ -68,7 +74,11 @@ async def onboarding_node(state: ConversationState) -> dict:
             "trace": ["onboarding_node:complete"],
         }
 
-    return {"outbound_messages": [{"type": "text", "body": "শুরু করতে 'শুরু' লিখুন।"}], "trace": ["onboarding_node:already_done"]}
+    return {
+        "outbound_messages": [{"type": "text", "body": "শুরু করতে 'শুরু' লিখুন।"}],
+        "trace": ["onboarding_node:already_done"],
+    }
+
 
 async def _create_user(state: ConversationState) -> str:
     from datetime import datetime, timezone
