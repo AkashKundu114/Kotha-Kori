@@ -25,7 +25,7 @@ CORRECTION_SYSTEM = (
 
 def _validate_amount(amt: float) -> float | None:
     """Reject NaN/inf and out-of-range amounts before they ever reach the DB.
-    See RED_TEAM_AUDIT_AND_FIXES.md HIGH-4."""
+    See red-team.md HIGH-4."""
     if amt != amt or amt in (float("inf"), float("-inf")):
         return None
     if amt < 0 or amt > MAX_REASONABLE_AMOUNT:

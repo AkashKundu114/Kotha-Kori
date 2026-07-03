@@ -38,9 +38,9 @@ kotha-khata/
 │   ├── whatsapp/             # WhatsApp API client
 │   └── config/               # Environment config, secrets
 ├── ml/
-│   ├── whisper-finetune/     # Whisper fine-tuning scripts
-│   ├── efficientnet-agri/    # Crop disease model training
-│   └── ner-bengali/          # spaCy NER training
+│   ├── whisper/              # Whisper fine-tuning scripts
+│   ├── vision/               # Crop disease model training
+│   └── ner/                  # spaCy NER training
 ├── data/
 │   ├── schemes/              # Scheme PDFs and scraped content
 │   ├── training-audio/       # STT evaluation test set
@@ -333,7 +333,7 @@ alembic upgrade head
 ### Week 4: Bhashini STT Integration
 
 ```python
-# services/stt-service/bhashini.py
+# services/stt/bhashini.py
 import httpx
 import base64
 import asyncio

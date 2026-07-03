@@ -39,7 +39,7 @@ The naive grounding check (does this claimed number appear *anywhere* in the ret
 **Interview talking point:** this is a self-found regression class ("citation-shaped hallucination") with a concrete reproduction, a fix, and 9 unit tests (`tests/unit/test_grounding_verifier.py`) covering the exact swapped-amount and word-form cases. Good artifact to walk through live in a technical interview — it's small, self-contained, and demonstrates adversarial thinking about your own system.
 
 ### 3.4 Security: two independent audit passes, with real findings
-I ran a structured security audit (`docs/security/SECURITY_AUDIT_V3.md`) and a second red-team pass specifically looking for what the first missed (`docs/security/RED_TEAM_AUDIT_AND_FIXES.md`). The second pass found things the first didn't: Redis/Postgres/Ollama bound to `0.0.0.0` with no auth (single `redis-cli FLUSHALL` = total outage + re-opens an already-"fixed" replay vulnerability), a webhook HMAC verification bug using the wrong secret entirely (verify-token instead of app-secret — meaning it either silently drops all real traffic or is trivially forgeable), and an SSRF/injection primitive in the PDF generator (Jinja2 autoescape was off, and WeasyPrint fetches remote resources it finds in rendered HTML — meaning a malicious "product category" string spoken into a voice note could make the PDF service issue outbound requests to internal infra, e.g. the cloud metadata endpoint).
+I ran a structured security audit (`docs/security.md`) and a second red-team pass specifically looking for what the first missed (`docs/red-team.md`). The second pass found things the first didn't: Redis/Postgres/Ollama bound to `0.0.0.0` with no auth (single `redis-cli FLUSHALL` = total outage + re-opens an already-"fixed" replay vulnerability), a webhook HMAC verification bug using the wrong secret entirely (verify-token instead of app-secret — meaning it either silently drops all real traffic or is trivially forgeable), and an SSRF/injection primitive in the PDF generator (Jinja2 autoescape was off, and WeasyPrint fetches remote resources it finds in rendered HTML — meaning a malicious "product category" string spoken into a voice note could make the PDF service issue outbound requests to internal infra, e.g. the cloud metadata endpoint).
 
 **Interview talking point:** the discipline of a *second, adversarial* pass finding real CRIT-severity issues the first structured pass missed is a stronger signal than either audit alone. Walk through CRIT-2 (SSRF via unescaped LLM-generated content into a PDF renderer) — it's a good example of a vulnerability class (LLM output → templated document renderer with network access) that's easy to miss because it doesn't look like classic XSS.
 
@@ -56,12 +56,12 @@ I ran a structured security audit (`docs/security/SECURITY_AUDIT_V3.md`) and a s
 | Real-world outcome: PDF bank-acceptance | Day-14/30 WhatsApp follow-up survey | Tracked, not assumed |
 | Real-world outcome: scheme checklist → application submitted | Same survey pattern | Tracked via `scheme_interactions.user_confirmed_applied` |
 
-I deliberately instrumented **outcome-grounded evaluation** — not just NLP metrics — because most published systems in this space report task accuracy, not real-world uptake. If even a handful of pilot users actually got a bank-accepted PDF or a submitted scheme application, that's a stronger empirical claim than most comparable systems make. See `docs/research/USER_MODEL_AND_RESEARCH.md` for the full plan.
+I deliberately instrumented **outcome-grounded evaluation** — not just NLP metrics — because most published systems in this space report task accuracy, not real-world uptake. If even a handful of pilot users actually got a bank-accepted PDF or a submitted scheme application, that's a stronger empirical claim than most comparable systems make. See `docs/research.md` for the full plan.
 
 ## 5. What I'd say if asked "what would you do differently"
 
-- I'd add mTLS/service-to-service auth before any move to a shared Kubernetes namespace — the current network-isolation-via-docker-compose boundary is a deliberate, documented, pilot-scale tradeoff, not an oversight (see `SECURITY_AUDIT_V3.md` H5).
-- The scheme-name-detection in the grounding verifier is a fixed backward-lookback window, not real coreference resolution — it misses the case where the scheme name appears *after* the amount in a sentence. Documented as a known limitation with a concrete follow-up (`ARCHITECTURE.md` §7.1).
+- I'd add mTLS/service-to-service auth before any move to a shared Kubernetes namespace — the current network-isolation-via-docker-compose boundary is a deliberate, documented, pilot-scale tradeoff, not an oversight (see `security.md` H5).
+- The scheme-name-detection in the grounding verifier is a fixed backward-lookback window, not real coreference resolution — it misses the case where the scheme name appears *after* the amount in a sentence. Documented as a known limitation with a concrete follow-up (`architecture.md` §7.1).
 - `ledger_correction_rate` is read for personalization but the recompute job (nightly, from `is_corrected` flags) was never written — a good example of a "the read path is done, the write path isn't" gap I flagged explicitly rather than let it look silently complete.
 
 ## 6. Repository structure (for a quick technical skim)
@@ -75,8 +75,10 @@ services/rag_service/
   grounding_verifier.py       the hallucination-catching logic (see §3.3)
 services/market_service/
   aggregator.py                k-anonymized trend aggregation
-docs/security/                 two independent audit passes
-docs/research/                 user model + field research plan
+docs/security.md               structured audit
+docs/red-team.md               adversarial audit
+docs/research.md               user model + evaluation plan
+docs/fieldwork.md              field research materials
 tests/unit/test_grounding_verifier.py   9 tests, good first thing to walk through
 ```
 

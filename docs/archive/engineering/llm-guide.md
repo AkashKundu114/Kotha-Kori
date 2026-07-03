@@ -85,7 +85,7 @@ Sources (all free):
 **Serving via Ollama:**
 ```bash
 # After fine-tuning:
-ollama create kotha-khata-qwen -f ml/llm-finetune/Modelfile
+ollama create kotha-khata-qwen -f ml/llm/Modelfile
 
 # Test:
 ollama run kotha-khata-qwen "আজ ৩০০ টাকা পাপড় বিক্রি করেছি"
@@ -307,7 +307,7 @@ The remaining gap is mitigated by:
 
 ### Step 2: Financial NER Dataset (3,000 examples)
 ```python
-# ml/llm-finetune/data/generate_ner_data.py
+# ml/llm/data/generate_ner_data.py
 # Template: "X taka Y bikri" → generate 3,000 variations
 # Amounts: 50-50,000 range, Bengali number words included
 # Products: 50 common SHG product names in Bengali
@@ -351,7 +351,7 @@ ollama:
 ```bash
 # First-time model setup (run once):
 docker compose exec ollama ollama pull nomic-embed-text
-docker compose exec ollama ollama create kotha-khata-qwen -f /app/ml/llm-finetune/Modelfile
+docker compose exec ollama ollama create kotha-khata-qwen -f /app/ml/llm/Modelfile
 docker compose exec ollama ollama create kotha-khata-vision -f /app/ml/vision-finetune/Modelfile
 
 # Verify:

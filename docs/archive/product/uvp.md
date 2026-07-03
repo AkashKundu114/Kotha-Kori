@@ -52,7 +52,7 @@ user actually needs it to land.
 This is the closest comparison and worth being honest about, since it's what
 reviewers will compare you against. The genuine differentiator is
 **outcome-grounded evaluation** — the `CatalogCreation.user_reported_sale_resulted`
-field and similar follow-up tracking (see `../research/USER_MODEL_AND_RESEARCH.md`'s
+field and similar follow-up tracking (see `../../research.md`'s
 metrics table) measure whether a bank actually accepted the generated
 document or a sale actually resulted, not just whether the chatbot's NLP
 metrics looked good in a lab eval. Most published systems in this space
@@ -63,7 +63,7 @@ most comparable papers make.
 ## The honest caveat
 None of the individual techniques here (cascade routing, grounding
 verification, k-anonymized aggregation) are novel in isolation — all are
-documented 2026 practice (`docs/research/agent_frameworks.md`). The
+documented 2026 practice (`docs/archive/research/agent-frameworks.md`). The
 contribution is the **combination, applied to a specific underserved
 population, with field-validated outcome data** — that's a legitimate
 systems/deployment paper, not a claim of new ML methods. Frame it that way;

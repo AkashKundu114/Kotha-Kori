@@ -1,5 +1,5 @@
 # Kotha-Khata — Red-Team Pass #2
-### Attacking beyond `docs/security/SECURITY_AUDIT_V3.md`
+### Attacking beyond `docs/security.md`
 
 **Method:** treat every trust boundary as hostile. For each one: try to read data I
 shouldn't, write data I shouldn't, crash a process, or make the system spend money/GPU
@@ -170,7 +170,7 @@ expected = "sha256=" + hmac.new(s.wa_app_secret.encode(), body, hashlib.sha256).
 
 **File:** `shared/whatsapp/media.py`, called from `services/gateway/main.py`
 
-The original audit (H9) flagged this for the old `stt-service`, but the *current*
+The original audit (H9) flagged this for the old `stt`, but the *current*
 production path (`voice_gateway`/`provider_cascade.py`, invoked from `main.py`) has the
 exact same gap and was never covered:
 
@@ -227,7 +227,7 @@ _AMOUNT_RE = re.compile(r"(₹\s?[০-৯0-9,]+|[০-৯0-9,]+\s?টাকা)")
 ```
 
 This is the system's single most important safety mechanism (per
-`docs/product/UNIQUE_VALUE_PROPOSITION.md`, it's *the* differentiator) — and it only
+`docs/archive/product/uvp.md`, it's *the* differentiator) — and it only
 extracts assertions that use digits. Bengali financial speech routinely uses number
 *words* ("এক হাজার টাকা" = "one thousand rupees"). If the LLM hallucinates an amount
 and phrases it in words instead of digits — which is a completely ordinary, unforced
@@ -235,7 +235,7 @@ generation choice, not even an adversarial prompt-injection — `_extract_assert
 never sees it as an assertion at all, so it can never be flagged ungrounded. A
 fabricated scheme amount phrased in words sails through with `all_grounded: True`.
 
-I confirmed this isn't theoretical: `ml/llm-finetune/finetune_qlora.py`'s own training
+I confirmed this isn't theoretical: `ml/llm/finetune_qlora.py`'s own training
 data uses exactly this style ("Bengali number words: এক=1, দুই=2..."), meaning the
 fine-tuned model is *specifically trained* to sometimes produce word-form numbers —
 directly undermining the verifier that's supposed to catch it downstream.
@@ -365,7 +365,7 @@ async def _process_turn_async(whatsapp_number, turn_input):
 ## MED-1 — Docker images run as root
 
 None of the Dockerfiles (`gateway`, `pdf_service`, `orchestrator`, `voice_gateway`,
-`stt-service`) declare a `USER` directive, so every container runs its process as
+`stt`) declare a `USER` directive, so every container runs its process as
 `root` by default. Combined with CRIT-2's SSRF-capable PDF renderer, a compromise of
 the WeasyPrint/Pillow/rembg dependency chain (all real, actively-updated libraries with
 occasional CVEs) gets root inside that container for free, instead of a low-privilege
@@ -408,6 +408,6 @@ but worth a pydantic schema *before* Option C ships, not after.
 | MED-1 | Containers run as root | ✅ non-root `USER` in Dockerfiles |
 | MED-2 | Unvalidated Flow JSON payload | ⚠️ flagged for Option C implementation, not yet consumed anywhere so no fix applied |
 
-Everything above is additive to `SECURITY_AUDIT_V3.md` (H1–H12), not a replacement —
+Everything above is additive to `security.md` (H1–H12), not a replacement —
 that audit's P0 items (idempotency, rate limiting, audio-retention claims, media size
-caps on the *old* `stt-service` path) are still correct and still need to stay applied.
+caps on the *old* `stt` path) are still correct and still need to stay applied.

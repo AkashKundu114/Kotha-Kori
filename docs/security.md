@@ -33,7 +33,7 @@ if count > s.max_messages_per_hour:
 ```
 
 ### H6. Audio "delete within 60s" is a written promise, not code
-**Files:** `docs/product/TRD.md` §7.1 and `docs/product/PRD.md` §6 both state audio is deleted within 60 seconds of transcription. No file in the v2 codebase does this — audio bytes are downloaded and passed in-memory but there's no explicit S3 lifecycle rule or deletion call anywhere.
+**Files:** `docs/archive/product/trd.md` §7.1 and `docs/product.md` §6 both state audio is deleted within 60 seconds of transcription. No file in the v2 codebase does this — audio bytes are downloaded and passed in-memory but there's no explicit S3 lifecycle rule or deletion call anywhere.
 **Why P0:** This isn't just a bug — it's a compliance claim you'd be making to real rural women during consent onboarding that isn't technically true. Fix before enrolling a single real user.
 **Fix:** Either (a) never persist raw audio to S3 at all for the pilot (simplest — process in-memory, discard after STT, which is what the code already effectively does — just document it accurately), or (b) if you do persist for STT-eval/fine-tuning purposes, add an S3 lifecycle rule (`Expiration: 1 day`) and update the consent copy to say what actually happens.
 

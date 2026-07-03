@@ -21,7 +21,7 @@ match.
    `.gitignore` actually excludes `.env` before your first `git add .`.
 4. Set a spend alert/budget cap in the console if the option exists at the
    time you look — this is your single biggest cost-exhaustion exposure
-   (see `../security/SECURITY_AUDIT_V3.md` H2 — the code-side rate limiter helps, but a
+   (see `../security/security.md` H2 — the code-side rate limiter helps, but a
    platform-side hard cap is a second independent safety net).
 
 ### 2. A GPU box for Ollama + Whisper fallback (Sarvam/Bhashini are cloud APIs, no GPU needed for those two)
@@ -94,7 +94,7 @@ match.
    whatever you set as `WA_WEBHOOK_VERIFY_TOKEN` in `.env` — these must
    match exactly, that's what `verify_webhook()` in `gateway/main.py` checks.
 3. Subscribe the webhook to the `messages` field.
-4. **Security step from `../security/SECURITY_AUDIT_V3.md` H12**: once you're off the
+4. **Security step from `../security/security.md` H12**: once you're off the
    test tunnel, restrict inbound traffic on port 443/8000 at your cloud
    provider's firewall/security-group level to Meta's published webhook IP
    ranges — search "WhatsApp Cloud API webhook IP ranges" for the current
@@ -132,7 +132,7 @@ match.
 ### 10. AWS account + S3 bucket (or equivalent object storage)
 1. Create an AWS account, an IAM user (not root credentials) scoped to
    only `s3:PutObject`/`s3:GetObject` on your specific bucket — least
-   privilege, per `../security/SECURITY_AUDIT_V3.md`'s general posture.
+   privilege, per `../security/security.md`'s general posture.
 2. Create the S3 bucket (`s3_bucket` in settings), enable default
    encryption (SSE-S3/AES256 — the code already sets this per-object, but
    bucket-level default is a good second layer).
@@ -154,7 +154,7 @@ don't assume it closes inside the 2-week engineering sprint.
 
 ### 12. Consent materials, reviewed by a human who knows DPDP Act 2023
 Draft Bengali consent copy (product consent + separate video-interview
-consent per `../research/USER_MODEL_AND_RESEARCH.md`) and have it reviewed — ideally by
+consent per `../../research.md`) and have it reviewed — ideally by
 someone with actual legal familiarity with DPDP, not just an AI-drafted
 approximation. This matters more than most engineering tasks here: it's the
 thing standing between the project and a real compliance problem.
@@ -177,7 +177,7 @@ alongside the engineering work.
 
 - **Daily**: check the Langfuse dashboard for grounding-verifier /
   hallucination-rate spikes (if you re-enable Feature 2) and general error
-  rate — this is manual per `../security/SECURITY_AUDIT_V3.md` H10's judgment call for
+  rate — this is manual per `../security/security.md` H10's judgment call for
   pilot scale.
 - **Weekly**: run `scripts/eval_stt.py` against your labeled sample set once
   you have one; review a sample of Feature 3 captions and Feature 8 reports

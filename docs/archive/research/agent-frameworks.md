@@ -1,7 +1,7 @@
 # Research Notes (2026) Behind the v2 Architecture
 
 Summarized findings from a review of current production guidance, used to justify
-the decisions in `docs/engineering/ARCHITECTURE.md`. Not exhaustive — re-verify before relying on
+the decisions in `docs/architecture.md`. Not exhaustive — re-verify before relying on
 specific numbers, providers change pricing/quality often.
 
 ## Indic voice/LLM providers

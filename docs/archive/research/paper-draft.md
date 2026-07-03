@@ -3,7 +3,7 @@
 **Status: Draft skeleton.** Sections 1–4 and 6–7 are ready to refine now. Section 5
 (Results) has the table structure and framing in place but is intentionally left as
 placeholders — filling it with invented numbers would misrepresent the work. Run the
-pilot per `SPRINT_2WEEK_PLAN.md` and the fieldwork in `FIELD_RESEARCH_TOOLKIT.md`
+pilot per `pilot-plan.md` and the fieldwork in `fieldwork.md`
 first, then populate §5 with real data before submitting anywhere.
 
 ---
@@ -70,10 +70,10 @@ shape, but every claim needs a real, checked source, not a remembered one.)*
 ## 3. System Design
 
 ### 3.1 Architecture overview
-*(Reuse and condense `docs/engineering/ARCHITECTURE.md` here — a LangGraph
+*(Reuse and condense `docs/architecture.md` here — a LangGraph
 state machine, three-tier voice cascade, WhatsApp Flows for structured intake,
 criticality-based LLM routing, hybrid RAG retrieval. Include the architecture
-diagram from `docs/product/TRD.md` §1, redrawn cleanly.)*
+diagram from `docs/archive/product/trd.md` §1, redrawn cleanly.)*
 
 ### 3.2 The grounding verifier (primary technical contribution)
 Describe the two-pass design: assertion extraction (numeric amounts — both digit
@@ -104,7 +104,7 @@ State district(s), NGO partner, number of SHG groups involved, and the pilot
 duration, once known.
 
 ### 4.2 Participants
-State actual N once recruited (target: 15–30 per `FIELD_RESEARCH_TOOLKIT.md` §1.1),
+State actual N once recruited (target: 15–30 per `fieldwork.md` §1.1),
 broken down by SHG-member / group-leader / independent-entrepreneur, with age range
 and business-category distribution.
 
@@ -112,13 +112,13 @@ and business-category distribution.
 - Quantitative: STT WER by dialect (weekly eval, `scripts/eval_stt.py`), ledger
   extraction accuracy (correction-rate proxy + manual audit), RAG grounding-check
   pass rate.
-- Qualitative: structured interviews (`FIELD_RESEARCH_TOOLKIT.md` §3), 3–5
+- Qualitative: structured interviews (`fieldwork.md` §3), 3–5
   in-depth video interviews.
 - Outcome: day-14/30 WhatsApp follow-up survey on PDF bank-acceptance and scheme
   application submission.
 
 ### 4.4 Ethics
-State the two-tier consent process (§2 of `FIELD_RESEARCH_TOOLKIT.md`), DPDP Act
+State the two-tier consent process (§2 of `fieldwork.md`), DPDP Act
 2023 compliance posture, and — if applicable — IRB/ethics-board approval status for
 your institution. Do not omit this section even in a systems-track submission;
 reviewers in this space specifically check for it given the vulnerable population.
@@ -149,7 +149,7 @@ reviewers in this space specifically check for it given the vulnerable populatio
 ### 5.3 Qualitative findings
 Summarize recurring themes across interviews (§3 of the toolkit) once transcribed.
 Use direct quotes only from participants who consented to attribution per
-`FIELD_RESEARCH_TOOLKIT.md` §2.2, and only short, clearly-marked quotes — don't
+`fieldwork.md` §2.2, and only short, clearly-marked quotes — don't
 paraphrase in a way that implies precision you don't have from field notes alone.
 
 ---
@@ -188,11 +188,11 @@ usage, not full scheme-application-to-approval cycles).
 ---
 
 ## Appendix A — Interview guide
-Reuse `FIELD_RESEARCH_TOOLKIT.md` §3 verbatim, with English translations alongside
+Reuse `fieldwork.md` §3 verbatim, with English translations alongside
 the Bengali as shown there.
 
 ## Appendix B — Consent forms
-Reuse `FIELD_RESEARCH_TOOLKIT.md` §2.1 and §2.2 verbatim.
+Reuse `fieldwork.md` §2.1 and §2.2 verbatim.
 
 ## Appendix C — System prompts
 Include the anti-hallucination system prompt from `services/rag_service/pipeline.py`

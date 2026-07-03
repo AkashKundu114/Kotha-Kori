@@ -26,15 +26,15 @@ for your first task. Don't block on getting everything at once.
 ## Day 1 — Read before you touch code
 
 1. `README.md` — repo map.
-2. `docs/engineering/ARCHITECTURE.md` — **the most important file in this repo.** It explains
+2. `docs/architecture.md` — **the most important file in this repo.** It explains
    every major design decision and what problem it solves. If you're about to
    write code that contradicts this document, stop and ask why first. (It now
    also has a §7 addendum — read that too, it documents real findings from a
    first audit pass, including some dead code you'll want to ignore/delete.)
-3. `docs/product/PRD.md` — who you're building for (read the personas — Sunita, Rina — and
+3. `docs/product.md` — who you're building for (read the personas — Sunita, Rina — and
    keep them in mind; this is not a generic chatbot project).
-4. `docs/research/agent_frameworks.md` — the evidence behind decision #1-#6 in
-   ARCHITECTURE.md, if you want to go deeper.
+4. `docs/archive/research/agent-frameworks.md` — the evidence behind decision #1-#6 in
+   architecture.md, if you want to go deeper.
 
 ## Day 2 — Get it running locally
 
@@ -102,7 +102,7 @@ catch, swapped-amounts-across-two-schemes, multi-scheme comparison, and a
 scheme-less fallback case). All pass locally with `pytest tests/unit/test_grounding_verifier.py -v`.
 
 If you're picking up where this left off, the known gap to look at next is noted
-in `docs/engineering/ARCHITECTURE.md` §7.1: scheme detection only looks *backward* from an
+in `docs/architecture.md` §7.1: scheme detection only looks *backward* from an
 assertion, so "₹2500 আপনি লক্ষ্মীর ভান্ডার থেকে পাবেন" (amount before scheme name)
 isn't caught yet. Good follow-up PR if you want a second, smaller task.
 
@@ -113,7 +113,7 @@ the `_route_after_intent()` TODO comment in `graph.py`). Look at
 state, call `model_router.route_completion()` with the right `TaskCriticality`,
 return a partial state update with `outbound_messages`. Register it in
 `graph.py`. Reference the full conversation spec for that feature in
-`docs/product/APP_FLOW.md` (carried over from v1 — still accurate for *what* each
+`docs/archive/product/app-flow.md` (carried over from v1 — still accurate for *what* each
 feature should do, even though *how* it's wired changed).
 
 ### Option C: wire up a WhatsApp Flow handler
@@ -121,7 +121,7 @@ feature should do, even though *how* it's wired changed).
 in the orchestrator consumes its `complete` payload yet (it arrives as a
 `message_type == "interactive"` message — see `_dispatch_to_orchestrator()` in
 `services/gateway/main.py`). Build a deterministic eligibility rule-engine node
-(no LLM needed — see `docs/product/APP_FLOW.md` §5 for the actual eligibility rules) that
+(no LLM needed — see `docs/archive/product/app-flow.md` §5 for the actual eligibility rules) that
 consumes this payload and returns a checklist.
 
 ## Conventions to follow
@@ -141,7 +141,7 @@ consumes this payload and returns a checklist.
 
 Don't sit stuck for more than ~30 minutes on a setup/environment problem — ask in
 the team channel. Sitting stuck on understanding *why* a design decision was made
-is what `docs/engineering/ARCHITECTURE.md` is for — read it again before asking "why is it
+is what `docs/architecture.md` is for — read it again before asking "why is it
 built this way," the answer is probably already written down.
 
 ---
@@ -155,7 +155,7 @@ that pass did and did NOT do, so you know where to pick up.
 - `services/rag_service/grounding_verifier.py` — fixed the "right number, wrong
   scheme" gap (Day 4-5, Option A). Per-chunk + scheme-aware grounding.
 - `tests/unit/test_grounding_verifier.py` — extended from 4 to 9 tests; all pass.
-- `docs/engineering/ARCHITECTURE.md` — added §7 documenting the fix and a dead-code audit.
+- `docs/architecture.md` — added §7 documenting the fix and a dead-code audit.
 - This file — checked off the completed task, flagged the dead-code finding.
 
 ### ⬜ You need to do this — it requires real infrastructure/accounts/judgment
@@ -174,14 +174,14 @@ that pass did and did NOT do, so you know where to pick up.
    module, not the full docker-compose stack. Before merging, run the full
    `make test` suite in your real dev environment to make sure nothing else
    broke.
-4. **Decide on the dead-code cleanup** (`docs/engineering/ARCHITECTURE.md` §7.2). This is a
+4. **Decide on the dead-code cleanup** (`docs/architecture.md` §7.2). This is a
    judgment call your team lead should sign off on before a `git rm -r` PR,
    in case any of those hyphenated directories are mid-migration or referenced
    from somewhere not visible in this audit (e.g. a deploy script, a Terraform
    module, or another repo).
 5. **Decide whether to extend `SCHEME_NAME_ALIASES`** in the new verifier code
    as more schemes get ingested (`data/schemes/raw/`) — it currently covers the
-   8 launch schemes from `docs/product/PRD.md` §2.2, plus Sabooj Sathi. If a 9th scheme
+   8 launch schemes from `docs/product.md` §2.2, plus Sabooj Sathi. If a 9th scheme
    is added later, its Bengali name needs an entry here or grounding checks for
    it will silently fall back to the more lenient "found anywhere" behaviour.
 6. **Day 2 and Day 3 exercises themselves** (running the stack, tracing a live

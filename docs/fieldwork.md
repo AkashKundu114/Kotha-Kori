@@ -141,9 +141,9 @@ rely on memory afterward. Transcribe within 24 hours while context is fresh.
 
 ## 5. What to do with the results
 
-- Feed the correction-rate and STT-confidence data back into `docs/research/USER_MODEL_AND_RESEARCH.md`'s
+- Feed the correction-rate and STT-confidence data back into `docs/research.md`'s
   metrics table — this is the quantitative backbone.
-- Feed the interview transcripts into `RESEARCH_PAPER_DRAFT.md`'s Results section
+- Feed the interview transcripts into `paper-draft.md`'s Results section
   (§5) — this is the qualitative backbone. Use direct quotes sparingly and only with
   explicit consent per participant's choice in §2.2.
 - If 3+ participants independently mention the same friction point, that's worth its

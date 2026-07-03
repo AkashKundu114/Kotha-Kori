@@ -1,7 +1,7 @@
 # Kotha-Khata v2 — Architecture Decisions
 
-This document records what changed from the original plan (`docs/product/PRD.md`, `docs/product/TRD.md`,
-`docs/product/ROADMAP.md` in the v1 repo) and **why**, based on a review of 2026 production
+This document records what changed from the original plan (`docs/product.md`, `docs/archive/product/trd.md`,
+`docs/roadmap.md` in the v1 repo) and **why**, based on a review of 2026 production
 practice for WhatsApp AI agents, Indic-language voice pipelines, and RAG systems.
 Read this before touching any code — it's the map of *why the folders are shaped this way*.
 
@@ -21,7 +21,7 @@ so every turn is resumable, replayable, and inspectable. Intent classification,
 ledger entry, scheme RAG, and confirmation are *nodes* with explicit edges, not
 separate Celery entrypoints. This is the dominant 2026 pattern for stateful,
 branching, human-in-the-loop agents (Klarna, Replit, Elastic all run LangGraph for
-this exact reason — see `docs/research/agent_frameworks.md`).
+this exact reason — see `docs/archive/research/agent-frameworks.md`).
 
 Celery is **kept** only as the execution substrate (so a slow node doesn't block the
 20s WhatsApp webhook ack) — LangGraph runs *inside* a Celery task, not instead of it.
@@ -134,7 +134,7 @@ retrieved chunk (for Scheme B) happens to mention ₹2500, a generation that
 claims "Scheme A gives ₹2500" was marked `all_grounded: True` — ₹2500 *is*
 present in the combined context, just attached to the wrong scheme. This is
 exactly the gap flagged in `docs/INTERNSHIP_GUIDE.md`'s Day 4–5 task and in
-`docs/research/agent_frameworks.md`'s note on "citation-shaped hallucinations."
+`docs/archive/research/agent-frameworks.md`'s note on "citation-shaped hallucinations."
 
 **Fix:** grounding is now checked per-chunk, and whenever the answer names a
 scheme near an assertion (using a small Bengali/Latin alias table,
@@ -174,7 +174,7 @@ deleted rather than maintained going forward:
 | `services/ai-worker/` | Removed. Empty stub superseded by orchestrator nodes (see §1 above). |
 | `services/rag-service/` (hyphen) | Older copy of `services/rag_service/pipeline.py` — vector-only retrieval, no hybrid search, no real grounding check (`"hallucination_check_passed": True` hardcoded). The actively-used module is `services/rag_service/` (underscore), imported by `services/orchestrator/nodes/scheme_rag_node.py`. |
 | `services/pdf-service/` (hyphen) | Duplicate of `services/pdf_service/` (underscore). `docker-compose.yml` and `services/pdf_service/Dockerfile` only reference the underscore version. |
-| `services/stt-service/` (hyphen) | Pre-cascade standalone Whisper service (`whisper_engine.py`, its own `Dockerfile.gpu`). Superseded by the 3-tier cascade in `services/voice_gateway/provider_cascade.py`. Not in `docker-compose.yml`. |
+| `services/stt/` (hyphen) | Pre-cascade standalone Whisper service (`whisper_engine.py`, its own `Dockerfile.gpu`). Superseded by the 3-tier cascade in `services/voice_gateway/provider_cascade.py`. Not in `docker-compose.yml`. |
 | `services/vision-service/` | Removed. The active implementation lives in `services/vision_service/` and is wired through the catalog node. |
 
 None of this affects runtime behavior today (nothing imports the hyphenated
