@@ -118,3 +118,23 @@ class MarketPrice(Base):
     unit: Mapped[str | None] = mapped_column(String(20))
     data_source: Mapped[str] = mapped_column(String(20), primary_key=True)
     sample_count: Mapped[int | None] = mapped_column(Integer)
+    demand_score: Mapped[float | None] = mapped_column(Numeric(3, 2))
+
+
+class SellerProfile(Base):
+    """Backs the Pricing Recommendation Agent (pricing_node.py). One row per
+    seller; production_cost + preferred_margin + minimum_price feed the
+    deterministic price-floor calculation, never an LLM-generated number."""
+
+    __tablename__ = "seller_profiles"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), primary_key=True)
+    product_type: Mapped[str | None] = mapped_column(String(100))
+    production_cost: Mapped[float | None] = mapped_column(Numeric(10, 2))
+    preferred_margin: Mapped[float] = mapped_column(Numeric(4, 3), default=0.30)
+    minimum_price: Mapped[float | None] = mapped_column(Numeric(10, 2))
+    monthly_sales: Mapped[int] = mapped_column(Integer, default=0)
+    inventory: Mapped[int] = mapped_column(Integer, default=0)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=datetime.utcnow
+    )

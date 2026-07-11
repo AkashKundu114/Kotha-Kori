@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Literal, TypedDict, Annotated
 from operator import add
 
-Feature = Literal["LEDGER", "LEDGER_REPORT", "CATALOG", "MARKET", "ONBOARDING", "IDLE"]
+Feature = Literal["LEDGER", "LEDGER_REPORT", "CATALOG", "MARKET", "PRICING", "ONBOARDING", "IDLE"]
 
 
 class PendingLedgerEntry(TypedDict, total=False):

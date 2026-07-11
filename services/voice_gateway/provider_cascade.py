@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 
-from services.voice_gateway.providers import openai_stt_provider, whisper_local_provider
+from services.voice_gateway.providers import saaras_provider, whisper_local_provider
 
 logger = logging.getLogger("voice_gateway")
 
@@ -10,15 +10,15 @@ CONFIDENCE_FLOOR = 0.60
 
 
 async def transcribe(audio_bytes: bytes, language: str = "bn") -> dict:
-    """Two-tier STT cascade, both usable with just an OpenAI key:
-    1. OpenAI Whisper API (whisper-1) — primary, no separate account needed.
+    """Two-tier STT cascade, no OpenAI involved:
+    1. Saaras V3 (Sarvam) — primary, paid, Bengali-native.
     2. Self-hosted faster-whisper (CPU) — free, zero-key fallback for uptime
-       when OpenAI is briefly unavailable or rate-limited.
+       when Sarvam is briefly unavailable or rate-limited.
     Never raises — an exhausted cascade returns an empty transcript so the
     caller can show a friendly 'didn't catch that, try again' message
     instead of crashing."""
     providers = [
-        ("openai-whisper", openai_stt_provider.transcribe),
+        ("saaras-v3", saaras_provider.transcribe),
         ("whisper-local", whisper_local_provider.transcribe),
     ]
 

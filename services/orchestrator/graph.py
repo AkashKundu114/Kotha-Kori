@@ -12,6 +12,7 @@ from services.orchestrator.nodes.ledger_confirm_node import ledger_confirm_node
 from services.orchestrator.nodes.ledger_report_node import ledger_report_node
 from services.orchestrator.nodes.catalog_node import catalog_node
 from services.orchestrator.nodes.market_predictor_node import market_predictor_node
+from services.orchestrator.nodes.pricing_node import pricing_node
 from services.orchestrator.nodes.conversation_node import general_conversation_node
 from shared.config.settings import get_settings
 
@@ -36,6 +37,8 @@ def _route_after_intent(state: ConversationState) -> str:
         return "ledger_report"
     if feature == "MARKET":
         return "market"
+    if feature == "PRICING":
+        return "pricing"
     return "unhandled"
 
 
@@ -50,6 +53,7 @@ def build_graph() -> StateGraph:
     graph.add_node("ledger_report", ledger_report_node)
     graph.add_node("catalog", catalog_node)
     graph.add_node("market", market_predictor_node)
+    graph.add_node("pricing", pricing_node)
     graph.add_node("unhandled", general_conversation_node)
 
     graph.set_entry_point("load_user_profile")
@@ -70,6 +74,7 @@ def build_graph() -> StateGraph:
             "ledger": "ledger",
             "ledger_report": "ledger_report",
             "market": "market",
+            "pricing": "pricing",
             "unhandled": "unhandled",
         },
     )
@@ -79,6 +84,7 @@ def build_graph() -> StateGraph:
     graph.add_edge("ledger_report", END)
     graph.add_edge("catalog", END)
     graph.add_edge("market", END)
+    graph.add_edge("pricing", END)
     graph.add_edge("unhandled", END)
 
     return graph

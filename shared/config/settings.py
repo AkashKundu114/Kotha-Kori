@@ -13,33 +13,35 @@ class Settings(BaseSettings):
     database_url: str
     redis_url: str
 
-    # --- OpenAI — required (sole external AI vendor) ---
-    openai_api_key: str
-    openai_model: str = "gpt-4o-mini"
-    openai_vision_model: str = "gpt-4o-mini"
-
-    # --- Sarvam AI — cheap, Indic-native primary tier for structured Bengali
-    # text (extraction, corrections, phrasing, captions) and for Bengali<->English
-    # translation. Optional: if left blank, that tier is skipped and OpenAI
-    # handles everything (functionally identical to the pre-Sarvam build). ---
+    # --- Sarvam AI — sole external AI vendor for chat, vision, and STT ---
     sarvam_api_key: str = ""
     sarvam_base_url: str = "https://api.sarvam.ai"
     sarvam_chat_model: str = "sarvam-30b"
+    sarvam_advanced_model: str = "sarvam-105b"   # ads, negotiation, pricing phrasing
+    sarvam_vision_model: str = "sarvam-vision"
+    saaras_model: str = "saaras:v3"               # STT
     routine_confidence_floor: float = 0.80
 
-    # --- Self-hosted, optional fallback tier (no third-party API) ---
-    # Two independent knobs: a generic local chat model (Qwen etc. via Ollama),
-    # and/or your own Q4-quantized sarvam-translate box (served OpenAI-compatible,
-    # e.g. via vLLM) for zero-marginal-cost translation once you've bought/tuned it.
+    # --- Free, self-hosted fallback tier — NOT optional in spirit anymore.
+    # With OpenAI removed, this is the ONLY thing keeping every agent alive
+    # during a Sarvam outage or when SARVAM_API_KEY is unset entirely. The
+    # toggle stays here because the GPU box is opt-in infra you provision
+    # yourself, but running without it means a Sarvam outage goes fully
+    # silent for every text/vision agent — see docs/architecture.md §8. ---
     use_local_models: bool = False
     ollama_base_url: str = "http://ollama:11434"
     ollama_llm_model: str = "qwen2.5:7b-instruct-q4_K_M"
-    sarvam_local_base_url: str = ""  # e.g. http://localhost:8000/v1 (vLLM), blank = disabled
+    ollama_vision_model: str = "qwen2-vl:7b-q4_K_M"
+    sarvam_local_base_url: str = ""  # your own vLLM-served sarvam-translate box, blank = disabled
 
     # --- Self-hosted STT fallback (always available, no key needed) ---
     whisper_model_path: str = "small"
     whisper_device: str = "cpu"
     whisper_compute_type: str = "int8"
+
+    # --- Poster generation ---
+    flux_api_key: str = ""          # optional paid upgrade tier; blank = Pillow-only (free, always works)
+    flux_base_url: str = "https://api.bfl.ml"
 
     # --- Object storage ---
     s3_bucket: str = "kotha-khata-assets"

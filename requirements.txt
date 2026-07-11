@@ -6,7 +6,6 @@ redis[asyncio]==5.0.6
 celery==5.4.0
 sqlalchemy[asyncio]==2.0.30
 asyncpg==0.29.0
-openai==1.51.0
 langgraph==0.2.20
 langgraph-checkpoint-postgres==1.0.10
 psycopg[binary]==3.3.4
@@ -22,3 +21,12 @@ pytest==8.2.2
 pytest-asyncio==0.23.7
 ruff==0.5.0
 mypy==1.10.0
+
+# NOTE: the `openai` package is NOT a required dependency anymore — no
+# OpenAI service is called anywhere in this codebase. It is only imported
+# lazily, inside services/translation_service/sarvam_client.py's
+# chat_completion_self_hosted(), as a *wire-protocol* client against your
+# own self-hosted vLLM box (which happens to speak the OpenAI-compatible
+# API shape). That function is optional and only used if you set
+# SARVAM_LOCAL_BASE_URL. Uncomment below only if you use that path:
+# openai==1.51.0

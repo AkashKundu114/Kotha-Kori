@@ -9,7 +9,6 @@ REQUIRED = [
     "WA_ACCESS_TOKEN",
     "WA_WEBHOOK_VERIFY_TOKEN",
     "WA_APP_SECRET",
-    "OPENAI_API_KEY",
     "POSTGRES_PASSWORD",
     "REDIS_PASSWORD",
     "DATABASE_URL",
@@ -45,22 +44,38 @@ def main() -> int:
         return 1
 
     print("✅ All required .env values are set.")
-    if not env.get("SARVAM_API_KEY", "").strip():
+
+    sarvam_set = bool(env.get("SARVAM_API_KEY", "").strip())
+    local_enabled = env.get("USE_LOCAL_MODELS", "false").lower() == "true"
+
+    if not sarvam_set:
         print(
-            "ℹ️  SARVAM_API_KEY is blank — the bot will run fine, but every "
-            "message will go straight to OpenAI instead of the cheaper Sarvam "
-            "tier. Recommended: get a key at sarvam.ai and set it."
+            "⚠️  SARVAM_API_KEY is blank — Sarvam is now the ONLY paid vendor "
+            "(OpenAI has been removed entirely). Every agent will fail unless "
+            "USE_LOCAL_MODELS=true and Ollama is actually reachable."
         )
+    if not sarvam_set and not local_enabled:
+        print(
+            "❌ No paid tier (SARVAM_API_KEY) AND no free fallback "
+            "(USE_LOCAL_MODELS=true) configured — every agent call will "
+            "raise ModelUnavailableError. Set at least one before `make dev`."
+        )
+    if local_enabled:
+        print("ℹ️  USE_LOCAL_MODELS=true — make sure you run:")
+        print("    docker compose --profile local-models up -d ollama")
+        print("    docker compose exec ollama ollama pull " + env.get("OLLAMA_LLM_MODEL", "qwen2.5:7b-instruct-q4_K_M"))
+        print("    docker compose exec ollama ollama pull " + env.get("OLLAMA_VISION_MODEL", "qwen2-vl:7b-q4_K_M"))
     if not os.path.exists(env.get("BENGALI_FONT_PATH", "assets/fonts/NotoSansBengali-Bold.ttf")):
         print(
             "ℹ️  Bengali font not found at BENGALI_FONT_PATH — ad posters will "
             "fall back to plain photo + separate caption messages. See "
             "assets/fonts/README.md to enable full poster generation."
         )
-    if env.get("USE_LOCAL_MODELS", "false").lower() == "true":
-        print("ℹ️  USE_LOCAL_MODELS=true — make sure you run:")
-        print("    docker compose --profile local-models up -d ollama")
-        print("    docker compose exec ollama ollama pull " + env.get("OLLAMA_LLM_MODEL", "qwen2.5:7b-instruct-q4_K_M"))
+    if not env.get("FLUX_API_KEY", "").strip():
+        print(
+            "ℹ️  FLUX_API_KEY is blank — poster generation will use the free, "
+            "local Pillow composite only (always works, no code change needed)."
+        )
     return 0
 
 

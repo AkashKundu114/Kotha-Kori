@@ -26,7 +26,7 @@ this exact reason — see `docs/archive/research/agent-frameworks.md`).
 Celery is **kept** only as the execution substrate (so a slow node doesn't block the
 20s WhatsApp webhook ack) — LangGraph runs *inside* a Celery task, not instead of it.
 
-## 2. Voice stack: Bhashini-primary → three-tier provider cascade, Sarvam-primary
+## 2. Voice stack: Bhashini-primary → Sarvam-primary, free local fallback
 
 **v1 problem:** TRD specified Bhashini as the primary STT with self-hosted Whisper as
 fallback. As of 2026, independent Bengali STT benchmarks show Sarvam AI's ASR is
@@ -34,16 +34,12 @@ measurably more accurate and lower-latency on regional/dialectal Bengali than
 Bhashini, while Bhashini's free tier is excellent for cost control but not built for
 latency-sensitive production traffic.
 
-**v2 decision:** `services/voice-gateway/provider_cascade.py` tries, in order:
+**v2 decision:** `services/voice_gateway/provider_cascade.py` tries, in order:
 
-1. **Sarvam AI** (`saarika` STT / `bulbul` TTS) — primary, paid, best accuracy/latency.
-2. **Bhashini** — fallback on Sarvam error/timeout/budget-cap, free, GoI-backed.
-3. **Self-hosted fine-tuned `faster-whisper`** — final fallback, zero marginal cost,
-   works offline if the GPU box is reachable but the internet/API providers are not.
-
-This keeps the original's "zero marginal cost at scale" end-state (tier 3 absorbs
-volume once fine-tuned and trained on pilot data) while fixing the day-1 quality gap
-of defaulting to a free-tier API for a literacy-sensitive, voice-first product.
+1. **Saaras V3** (Sarvam's STT model) — primary, paid, best accuracy/latency.
+2. **Self-hosted fine-tuned `faster-whisper`** — free, zero marginal cost, the only
+   fallback tier (see §8 below — this is no longer an optional nicety, it's the sole
+   safety net now that OpenAI has been removed entirely).
 
 ## 3. Structured input: voice-only → WhatsApp Flows for forms
 
@@ -58,28 +54,28 @@ for onboarding and eligibility intake — see
 *primary* channel for the ledger (genuinely unstructured speech) and for users who
 prefer it everywhere, but structured branches no longer round-trip through an LLM.
 
-## 4. LLM usage: all-Claude or all-self-hosted → cascaded by task criticality
+## 4. LLM usage: cascaded by task criticality, Sarvam-first
 
 **v1 problem:** The roadmap's "phased migration" implied a binary switch — pay for
-Claude everywhere during MVP, then flip to 100% self-hosted Qwen post-pilot. That
-either overpays during MVP or silently degrades grounding quality on the
-highest-stakes output (scheme eligibility verdicts) once migrated.
+a frontier model everywhere during MVP, then flip to 100% self-hosted post-pilot.
+That either overpays during MVP or silently degrades quality once migrated.
 
-**v2 decision:** `services/orchestrator/model_router.py` routes by task:
-- **Safety-critical** (scheme RAG generation + grounding verification, eligibility
-  verdicts): always Claude Sonnet — wrong scheme info has real consequences.
-- **Routine/high-volume** (ledger NER, meeting-minutes extraction, intent
-  classification): self-hosted fine-tuned Qwen2.5-7B via Ollama — cheap, fast, and
-  the gap closes with domain fine-tuning per the original's own quality table.
-- A confidence threshold escalates a "routine" call to Claude if the local model's
-  self-reported confidence is low, instead of silently shipping a bad extraction.
+**v2 decision:** `services/orchestrator/model_router.py` routes by task and by
+agent tier:
+- **Standard tier** (ledger NER, meeting-minutes extraction, intent classification,
+  market phrasing, pricing phrasing): Sarvam-30B — cheap, Bengali-native, fast.
+- **Advanced tier** (ad captions, negotiation, pricing explanations): Sarvam-105B —
+  stronger reasoning for higher-stakes phrasing tasks.
+- **Free fallback** (both tiers): self-hosted Qwen2.5-7B via Ollama. As of §8 below,
+  this is the *only* fallback — see that section for what changed and why it matters
+  more now than when it was originally "just" a cost-saving option.
 
 ## 5. RAG hallucination prevention: a hardcoded flag → a real two-pass verifier
 
 **v1 problem:** `pipeline.py` returned `"hallucination_check_passed": True`
 unconditionally. There was no actual verification step.
 
-**v2 decision:** `services/rag-service/grounding_verifier.py` implements the
+**v2 decision:** `services/rag_service/grounding_verifier.py` implements the
 2026-standard two-pass pattern:
 1. **Assertion extraction** — pull every number, date, scheme name, and amount out
    of the generated Bengali answer (regex + light NER).
@@ -89,8 +85,7 @@ unconditionally. There was no actual verification step.
 
 Retrieval itself moves from vector-only to **hybrid**: Postgres full-text search
 (`tsvector`/`ts_rank`, zero extra infra) fused with pgvector cosine similarity via
-reciprocal rank fusion — this was *described* in the original TRD's pipeline diagram
-but never actually implemented in `pipeline.py`; v2 implements it.
+reciprocal rank fusion.
 
 > **Update (Week 1, see §7.1 below):** the v2.0 grounding check above had its own
 > gap — it concatenated all chunks before checking grounding, so a number from the
@@ -132,54 +127,74 @@ assertion's surface text appeared in it. That allows a **citation-shaped
 hallucination**: if Scheme A's real chunk says ₹1000 and a *different*
 retrieved chunk (for Scheme B) happens to mention ₹2500, a generation that
 claims "Scheme A gives ₹2500" was marked `all_grounded: True` — ₹2500 *is*
-present in the combined context, just attached to the wrong scheme. This is
-exactly the gap flagged in `docs/INTERNSHIP_GUIDE.md`'s Day 4–5 task and in
-`docs/archive/research/agent-frameworks.md`'s note on "citation-shaped hallucinations."
+present in the combined context, just attached to the wrong scheme.
 
 **Fix:** grounding is now checked per-chunk, and whenever the answer names a
 scheme near an assertion (using a small Bengali/Latin alias table,
 `SCHEME_NAME_ALIASES`), that assertion must be found within a chunk
-belonging to *that specific* scheme. Assertions with no identifiable nearby
-scheme mention keep the old, more lenient behaviour (grounded if found
-anywhere in the retrieved set) so short, scheme-less answers don't start
-failing spuriously.
-
-Verified with a reproduction: feeding the old (pre-fix) logic the exact
-"Lakshmir Bhandar claims JAAGO's ₹2500" case returns `all_grounded: True`
-(the bug); the new logic correctly returns `False`. Nine tests now cover
-this in `tests/unit/test_grounding_verifier.py`, including a "swapped
-amounts across two schemes" case and a multi-scheme comparison answer that
-should still pass when correctly attributed.
+belonging to *that specific* scheme. Nine tests cover this in
+`tests/unit/test_grounding_verifier.py`.
 
 **Known limitation, left for a follow-up PR:** scheme-name detection is a
-fixed lookback-window alias match, not a real coreference/NER pass. A
-sentence structured so the scheme name appears *after* the amount
-("₹2500 আপনি লক্ষ্মীর ভান্ডার থেকে পাবেন") would not be caught by the
-current backward-only lookback. If this turns out to be a common generation
-pattern in practice (check via `scripts/audit_rag.py`'s weekly human audit),
-extend `_nearby_scheme` to look both directions within the sentence
-boundary, not just backward.
+fixed lookback-window alias match, not a real coreference/NER pass.
 
 ### 7.2 Dead-code audit: pre-LangGraph v1 remnants still in the tree
 
-While tracing the message-handling path end to end (the Day 3 exercise), the
-following v1-era files/directories were found to be **unreferenced by
-anything in the current v2 wiring** (`docker-compose.yml`, the Dockerfiles,
-and `services/orchestrator/graph.py`/`celery_entrypoint.py`), and should be
-deleted rather than maintained going forward:
+The following v1-era files/directories were found to be **unreferenced by
+anything in the current v2 wiring** and were recommended for deletion:
+`services/gateway/router.py`, `services/ai-worker/`, `services/rag-service/`
+(hyphen), `services/pdf-service/` (hyphen), `services/stt/` (hyphen),
+`services/vision-service/`. See the running deletion list maintained
+alongside this doc for the current status of each.
 
-| Path | Why it's dead |
-|---|---|
-| `services/gateway/router.py` | Removed. It was superseded by `services/orchestrator/nodes/intent_router.py` and still referenced the deleted legacy `services.ai_worker` task package. |
-| `services/ai-worker/` | Removed. Empty stub superseded by orchestrator nodes (see §1 above). |
-| `services/rag-service/` (hyphen) | Older copy of `services/rag_service/pipeline.py` — vector-only retrieval, no hybrid search, no real grounding check (`"hallucination_check_passed": True` hardcoded). The actively-used module is `services/rag_service/` (underscore), imported by `services/orchestrator/nodes/scheme_rag_node.py`. |
-| `services/pdf-service/` (hyphen) | Duplicate of `services/pdf_service/` (underscore). `docker-compose.yml` and `services/pdf_service/Dockerfile` only reference the underscore version. |
-| `services/stt/` (hyphen) | Pre-cascade standalone Whisper service (`whisper_engine.py`, its own `Dockerfile.gpu`). Superseded by the 3-tier cascade in `services/voice_gateway/provider_cascade.py`. Not in `docker-compose.yml`. |
-| `services/vision-service/` | Removed. The active implementation lives in `services/vision_service/` and is wired through the catalog node. |
+---
 
-None of this affects runtime behavior today (nothing imports the hyphenated
-packages), but it's confusing for anyone reading the repo fresh — exactly the
-kind of thing that costs a new intern a wasted hour during the Day 3 trace
-exercise. Recommended next step: delete the hyphenated/dead directories in a
-dedicated cleanup PR (no logic changes, just `git rm -r`), separate from any
-feature work, so the diff is trivial to review.
+## 8. Vendor consolidation: OpenAI removed, Sarvam-only + free local fallback
+
+**What changed:** every OpenAI call point has been removed — the old
+`whisper-1` STT tier, `gpt-4o-mini` text tier, and `gpt-4o-mini` vision tier
+are all gone. Every agent (Ledger, Pricing, Market, Government Schemes,
+Vision, Advertisement, Negotiation, Speech) now has exactly **two** tiers:
+
+1. **Sarvam** (paid, primary) — `sarvam-30b` for standard-tier text tasks,
+   `sarvam-105b` for advanced tasks (ads, negotiation, pricing phrasing),
+   `sarvam-vision` for product photo identification, `saaras:v3` for STT.
+2. **Local Ollama** (free, self-hosted) — the *only* fallback. `faster-whisper`
+   remains the dedicated STT fallback specifically (it doesn't run through
+   the general Ollama chat/vision path).
+
+**Why this matters more than it sounds:** previously, OpenAI functioned as
+an implicit "this will basically always eventually work" third tier under
+Sarvam-and-local. That tier is gone. If `SARVAM_API_KEY` is unset/failing
+**and** `USE_LOCAL_MODELS=false`, every text/vision agent now raises
+`ModelUnavailableError` immediately — there is no other paid vendor to fall
+through to. In practice this means `USE_LOCAL_MODELS=true` plus a reachable
+Ollama box is no longer a nice-to-have cost optimization; it is the
+production uptime story. See `docs/COST.md` for the updated cascade table
+and `scripts/check_env.py`, which now warns explicitly if neither tier is
+configured.
+
+**Open verification item:** Sarvam Vision's product-photo capability has not
+been confirmed against current Sarvam API docs — Sarvam Vision has
+historically been positioned as document/OCR intelligence, not general
+product-photo understanding. `catalog_node.py`/`vision_router.py` now route
+through `route_vision_completion`, which tries Sarvam Vision first and the
+local Ollama vision model (`qwen2-vl`) second. **Verify Sarvam Vision's
+actual scope before relying on it as the production primary** — if it turns
+out to be document-scoped only, set `USE_LOCAL_MODELS=true` and treat the
+Ollama tier as the real primary for this agent specifically.
+
+**New agent added:** Pricing Recommendation (`services/orchestrator/nodes/pricing_node.py`).
+Deterministic core (cost + margin + market-floor math against the seller's
+own `production_cost`/`minimum_price`/`preferred_margin`, stored in the new
+`seller_profiles` table) — Sarvam is used only to phrase the explanation in
+warm Bengali, never to generate the price itself, matching the same
+"deterministic core, LLM for language only" pattern already used in
+`grounding_verifier.py` and `aggregator.py::classify_trend`.
+
+**Not yet built:** a Negotiation agent. If built, the same guard-rail
+pattern applies even more strictly: the LLM should generate persuasive
+Bengali phrasing only, and should **never** see or reason about
+`seller_profiles.minimum_price` directly — any flow that would confirm a
+sale below the stored floor must be rejected in code, not merely
+discouraged in the prompt.

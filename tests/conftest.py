@@ -11,7 +11,7 @@ _DEFAULTS = {
     "WA_APP_SECRET": "test-app-secret",
     "DATABASE_URL": "postgresql+asyncpg://test:test@localhost:5432/test",
     "REDIS_URL": "redis://localhost:6379/0",
-    "OPENAI_API_KEY": "test-openai-key",
+    "SARVAM_API_KEY": "test-sarvam-key",
 }
 
 for key, value in _DEFAULTS.items():
