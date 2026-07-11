@@ -26,15 +26,16 @@ Twilio, no Baileys, no other third-party messaging provider.
 | Feature | What it does |
 |---|---|
 | **Voice-Ledger** | Bengali voice note → Banglish/code-mixed normalization (only when needed) → structured income/expense extraction → confirm/correct loop → database write → bank-submittable PDF |
-| **Catalog Creator** | Product photo → background removal → vision product ID (Sarvam Vision, local Ollama vision fallback) → dual Bengali captions (Sarvam) → price suggestion → optional privacy-respecting market-demand note → composited into a single shareable ad poster image |
+| **Catalog Creator** | Product photo → background removal → vision product ID (Sarvam Vision, local Ollama vision fallback) → dual Bengali captions (Sarvam) → price suggestion → optional privacy-respecting market-demand note → composited into a single shareable ad poster (Flux Pro if configured, always falls back to a free local Pillow composite) |
 | **Pricing Recommendation** | Deterministic price-floor/recommendation math from the seller's own cost, margin, and minimum price (`seller_profiles` table), blended with market data where available — Sarvam is used only to phrase the explanation, never to generate the number itself |
+| **Negotiation** | Deterministic accept/reject against the same price floor, code-computed counter-offers (never LLM-generated), and a post-generation safety scan that discards any LLM phrasing quoting below the floor — see `docs/architecture.md` §9.1 |
 | **Market Predictor** | k-anonymized (min. 5 distinct sellers) aggregation of ledger sales data by block, fused with optional mandi price data, into rising/saturated trend advice |
 | **General conversation** | Off-topic messages get a real, warm, cheap (Sarvam-routed) reply that gently steers back on-topic |
 
 Government Scheme RAG (hallucination-guarded, code-complete but not wired
-into V3 routing), agri-diagnostics, meeting minutes, training, subsidy
-matchmaking, and a Negotiation agent are **not** in this build. See
-`docs/archive/planning/scope.md` for the scope-freeze rationale.
+into V3 routing), agri-diagnostics, meeting minutes, training, and subsidy
+matchmaking are **not** in this build. See `docs/archive/planning/scope.md`
+for the scope-freeze rationale.
 
 ## Quick start
 
@@ -94,11 +95,14 @@ services/
   orchestrator/         LangGraph state machine, feature nodes, model router
                          (Sarvam -> local Ollama cascade, no OpenAI)
     nodes/
-      pricing_node.py    Pricing Recommendation agent — deterministic core
+      pricing_node.py      Pricing Recommendation agent — deterministic core
+      negotiation_node.py  Negotiation agent — code-enforced price floor
   translation_service/  Sarvam client (chat, vision, translate, self-hosted fallback)
   voice_gateway/         Saaras V3 -> self-hosted faster-whisper STT cascade
   pdf_service/           Bank-submittable monthly report generation
   vision_service/        Catalog image processing, dual captions, ad-poster composite
+                          (flux_poster_client.py: optional Flux Pro tier;
+                           poster_composer.py: free Pillow tier, always available)
   market_service/        k-anonymized market trend aggregation
 shared/
   config/ db/ observability/ storage/ whatsapp/

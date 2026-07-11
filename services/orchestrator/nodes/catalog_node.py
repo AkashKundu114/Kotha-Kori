@@ -9,7 +9,7 @@ from shared.storage.s3_client import get_s3_client
 from services.orchestrator.state import ConversationState
 from services.vision_service.rembg_processor import process_product_image
 from services.vision_service.vision_router import analyze_product_image, generate_captions
-from services.vision_service.poster_composer import compose_poster
+from services.vision_service.poster_composer import generate_poster
 from services.orchestrator.model_router import ModelUnavailableError
 from services.market_service.aggregator import block_sales_trend, classify_trend
 
@@ -62,9 +62,9 @@ async def catalog_node(state: ConversationState) -> dict:
         }
 
     try:
-        # Vision understanding stays OpenAI-only (Sarvam has no comparable
-        # capability); caption generation is routed through the cheap Sarvam
-        # tier automatically via route_completion inside generate_captions.
+        # Vision understanding: Sarvam Vision -> local Ollama vision fallback
+        # (see model_router.route_vision_completion). Caption generation is
+        # routed through the Sarvam text cascade inside generate_captions.
         product_info = await analyze_product_image(raw_bytes)
         captions, (price_min, price_max) = await generate_captions(product_info, shg_name=_shg_name(state))
     except ModelUnavailableError:
@@ -87,7 +87,7 @@ async def catalog_node(state: ConversationState) -> dict:
             "trace": ["catalog_node:s3_upload_failed"],
         }
 
-    outbound_messages, poster_key = await _build_delivery_messages(
+    outbound_messages, poster_key, poster_tier = await _build_delivery_messages(
         s3, s, processed_bytes, processed_key, product_info, captions, price_min, price_max,
         market_note, state,
     )
@@ -104,18 +104,19 @@ async def catalog_node(state: ConversationState) -> dict:
             "processed_s3_key": poster_key or processed_key,
         },
         "outbound_messages": outbound_messages,
-        "trace": [f"catalog_node:done:{product_info.get('vision_model_used')}:poster={bool(poster_key)}"],
+        "trace": [f"catalog_node:done:{product_info.get('vision_model_used')}:poster={poster_tier}"],
     }
 
 
 async def _build_delivery_messages(s3, s, processed_bytes, processed_key, product_info, captions, price_min, price_max, market_note, state):
-    """Tries to composite a single shareable poster (photo + price + caption
-    banner). Falls back to the original photo + separate caption messages if
-    the Bengali font asset isn't installed — see assets/fonts/README.md."""
+    """Tries Flux Pro first (if configured), falls back to the free local
+    Pillow composite (a single shareable poster: photo + price + caption
+    banner), and finally to the original photo + separate caption messages
+    if neither poster tier can produce output (e.g. no Flux key AND no
+    Bengali font installed — see assets/fonts/README.md)."""
     ad_caption_full = captions["ad_caption"] + (f"\n{market_note}" if market_note else "")
 
-    poster_bytes = await asyncio.to_thread(
-        compose_poster,
+    poster_bytes, poster_tier = await generate_poster(
         processed_bytes,
         product_name=product_info.get("product_type", "পণ্য"),
         ad_caption=ad_caption_full,
@@ -125,7 +126,8 @@ async def _build_delivery_messages(s3, s, processed_bytes, processed_key, produc
     )
 
     if poster_bytes:
-        poster_key = processed_key.replace(".png", "-poster.jpg")
+        ext = "jpg"
+        poster_key = processed_key.replace(".png", f"-poster-{poster_tier}.{ext}")
         try:
             await asyncio.to_thread(
                 s3.put_object, Bucket=s.s3_bucket, Key=poster_key, Body=poster_bytes,
@@ -140,9 +142,10 @@ async def _build_delivery_messages(s3, s, processed_bytes, processed_key, produc
                     {"type": "text", "body": "ইংরেজিতেও ক্যাপশন চান? (শহুরে কাস্টমারদের জন্য) — 'হ্যাঁ' লিখুন।"},
                 ],
                 poster_key,
+                poster_tier,
             )
         except Exception:
-            logger.warning("poster upload failed, falling back to plain image delivery")
+            logger.warning("poster upload failed (tier=%s), falling back to plain image delivery", poster_tier)
 
     processed_url = s3.generate_presigned_url(
         "get_object", Params={"Bucket": s.s3_bucket, "Key": processed_key}, ExpiresIn=86400
@@ -152,7 +155,7 @@ async def _build_delivery_messages(s3, s, processed_bytes, processed_key, produc
         {"type": "text", "body": "📣 বিজ্ঞাপনের জন্য এই সংক্ষিপ্ত বার্তাটিও ব্যবহার করতে পারেন:\n\n" + ad_caption_full},
         {"type": "text", "body": "ইংরেজিতেও ক্যাপশন চান? (শহুরে কাস্টমারদের জন্য) — 'হ্যাঁ' লিখুন।"},
     ]
-    return messages, None
+    return messages, None, "none"
 
 
 async def _market_note(state: ConversationState, vision_category: str) -> str | None:

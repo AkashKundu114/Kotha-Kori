@@ -13,6 +13,7 @@ from services.orchestrator.nodes.ledger_report_node import ledger_report_node
 from services.orchestrator.nodes.catalog_node import catalog_node
 from services.orchestrator.nodes.market_predictor_node import market_predictor_node
 from services.orchestrator.nodes.pricing_node import pricing_node
+from services.orchestrator.nodes.negotiation_node import negotiation_node
 from services.orchestrator.nodes.conversation_node import general_conversation_node
 from shared.config.settings import get_settings
 
@@ -24,6 +25,8 @@ def _route_after_profile_load(state: ConversationState) -> str:
         return "onboarding"
     if state.get("awaiting_confirmation"):
         return "ledger_confirm"
+    if state.get("awaiting_negotiation"):
+        return "negotiation"
     if state.get("last_message_type") == "image":
         return "catalog"
     return "classify_intent"
@@ -39,6 +42,8 @@ def _route_after_intent(state: ConversationState) -> str:
         return "market"
     if feature == "PRICING":
         return "pricing"
+    if feature == "NEGOTIATION":
+        return "negotiation"
     return "unhandled"
 
 
@@ -54,6 +59,7 @@ def build_graph() -> StateGraph:
     graph.add_node("catalog", catalog_node)
     graph.add_node("market", market_predictor_node)
     graph.add_node("pricing", pricing_node)
+    graph.add_node("negotiation", negotiation_node)
     graph.add_node("unhandled", general_conversation_node)
 
     graph.set_entry_point("load_user_profile")
@@ -63,6 +69,7 @@ def build_graph() -> StateGraph:
         {
             "onboarding": "onboarding",
             "ledger_confirm": "ledger_confirm",
+            "negotiation": "negotiation",
             "catalog": "catalog",
             "classify_intent": "classify_intent",
         },
@@ -75,6 +82,7 @@ def build_graph() -> StateGraph:
             "ledger_report": "ledger_report",
             "market": "market",
             "pricing": "pricing",
+            "negotiation": "negotiation",
             "unhandled": "unhandled",
         },
     )
@@ -85,6 +93,7 @@ def build_graph() -> StateGraph:
     graph.add_edge("catalog", END)
     graph.add_edge("market", END)
     graph.add_edge("pricing", END)
+    graph.add_edge("negotiation", END)
     graph.add_edge("unhandled", END)
 
     return graph

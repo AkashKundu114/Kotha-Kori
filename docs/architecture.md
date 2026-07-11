@@ -192,9 +192,47 @@ warm Bengali, never to generate the price itself, matching the same
 "deterministic core, LLM for language only" pattern already used in
 `grounding_verifier.py` and `aggregator.py::classify_trend`.
 
-**Not yet built:** a Negotiation agent. If built, the same guard-rail
-pattern applies even more strictly: the LLM should generate persuasive
-Bengali phrasing only, and should **never** see or reason about
-`seller_profiles.minimum_price` directly — any flow that would confirm a
-sale below the stored floor must be rejected in code, not merely
-discouraged in the prompt.
+**Update — now built:** the Negotiation agent and a real Flux Pro poster
+tier are both implemented. See §9 below.
+
+## 9. Negotiation agent (built) + Flux Pro poster tier (built)
+
+### 9.1 Negotiation agent — `services/orchestrator/nodes/negotiation_node.py`
+
+Follows the guard-rail pattern flagged as a requirement when this agent was
+still just a design note: the LLM (Sarvam-105B) is used **only** to phrase
+responses in warm Bengali. It never decides whether an offer is accepted,
+and it never generates the counter-offer number itself. Three independent,
+code-level enforcement points, not prompt instructions:
+
+1. **Accept/reject is a plain Python comparison** (`offer >= floor` in
+   `_evaluate_offer`) against a floor computed by the same deterministic
+   `_recommend()` function the Pricing agent uses (`pricing_node.py`).
+2. **The counter-offer amount is computed in code** (`_compute_counter_offer`,
+   a pure function covered by `tests/unit/test_negotiation_node.py`) using
+   `max(floor, ...)`, which makes a below-floor result structurally
+   impossible, not just unlikely.
+3. **A post-generation safety net** (`_contains_amount_below`) scans every
+   LLM-generated response for any rupee amount. If the model ever
+   hallucinates a lower number, the entire generated message is discarded
+   for a deterministic Bengali fallback line — same philosophy as
+   `grounding_verifier.py`, applied to a financial floor instead of a
+   citation claim.
+
+Capped at `MAX_NEGOTIATION_TURNS = 4`; past that, the agent deterministically
+holds firm at the floor price and ends the negotiation.
+
+### 9.2 Flux Pro poster tier — `services/vision_service/flux_poster_client.py`
+
+Real async submit -> poll -> download integration, wired into
+`poster_composer.py`'s new `generate_poster()` as the optional first tier.
+The existing Pillow `compose_poster()` remains the permanent free fallback.
+`catalog_node.py` now calls `generate_poster()` and tags the delivered
+poster's trace/S3 key with which tier actually produced it.
+
+**Open verification item:** the endpoint paths and payload shape in
+`flux_poster_client.py` are a best-effort implementation against Flux
+Pro's documented pattern, not verified against live docs. Any mismatch
+raises `FluxUnavailableError` and falls through to Pillow automatically —
+it never ships a broken image silently. Verify before trusting Flux as
+reliable in production.

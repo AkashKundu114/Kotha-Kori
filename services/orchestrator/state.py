@@ -3,7 +3,9 @@ from __future__ import annotations
 from typing import Literal, TypedDict, Annotated
 from operator import add
 
-Feature = Literal["LEDGER", "LEDGER_REPORT", "CATALOG", "MARKET", "PRICING", "ONBOARDING", "IDLE"]
+Feature = Literal[
+    "LEDGER", "LEDGER_REPORT", "CATALOG", "MARKET", "PRICING", "NEGOTIATION", "ONBOARDING", "IDLE"
+]
 
 
 class PendingLedgerEntry(TypedDict, total=False):
@@ -11,6 +13,13 @@ class PendingLedgerEntry(TypedDict, total=False):
     overall_confidence: float
     raw_transcript: str
     extracted_by: str
+
+
+class PendingNegotiation(TypedDict, total=False):
+    floor_price: float
+    product_type: str
+    turns: int
+    last_counter: float
 
 
 class UserProfile(TypedDict, total=False):
@@ -44,6 +53,9 @@ class ConversationState(TypedDict, total=False):
     pending_ledger_entry: PendingLedgerEntry | None
     awaiting_confirmation: bool
     ledger_confirmation_turns: int
+
+    pending_negotiation: PendingNegotiation | None
+    awaiting_negotiation: bool
 
     raw_image_s3_key: str | None
     catalog_result: dict | None

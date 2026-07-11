@@ -36,9 +36,22 @@ git diff                 # review before committing
 ### 3. Cleanup
 - See `DELETE_LIST.md` for the full breakdown (confirmed-dead vs. judgment-call vs. do-not-delete).
 
+### 4. New: Negotiation Agent (built, not just designed)
+- `services/orchestrator/nodes/negotiation_node.py` — **new file**. Accept/reject is a plain code comparison against the same deterministic floor `pricing_node.py` computes. The counter-offer amount is computed by a pure function (`_compute_counter_offer`, `max(floor, ...)` — structurally cannot go below floor). Every LLM-generated response (accept phrasing and counter phrasing, both Sarvam-105B) is scanned afterward by `_contains_amount_below` and discarded in favor of a deterministic fallback line if it ever quotes below the floor. Covered by `tests/unit/test_negotiation_node.py`.
+- `services/orchestrator/state.py` — `"NEGOTIATION"` added to `Feature`, new `PendingNegotiation` TypedDict, `pending_negotiation`/`awaiting_negotiation` fields.
+- `services/orchestrator/nodes/intent_router.py` — `NEGOTIATION_KEYWORDS` + routing branch, checked before `PRICING_KEYWORDS`.
+- `services/orchestrator/graph.py` — `negotiation` node wired in, including the mid-negotiation direct-route (same pattern as `ledger_confirm`).
+
+### 5. New: Flux Pro poster tier (real API integration, not a config placeholder)
+- `services/vision_service/flux_poster_client.py` — **new file**. Real async submit → poll-by-id → download-result-URL client against Flux Pro's documented pattern. Raises `FluxUnavailableError` on any failure (missing key, HTTP error, bad shape, moderation rejection, polling timeout).
+- `services/vision_service/poster_composer.py` — updated. Existing `compose_poster()` (Pillow) is **unchanged** and remains the permanent free fallback. New async `generate_poster()` tries Flux Pro first (only if `FLUX_API_KEY` is set), falls through to `compose_poster()` on any failure or if unconfigured.
+- `services/orchestrator/nodes/catalog_node.py` — updated to call `generate_poster()` instead of calling `compose_poster()` directly; traces/S3-keys now record which tier (`flux-pro` / `pillow` / `none`) actually produced the delivered poster.
+- Covered by `tests/unit/test_flux_poster_fallback.py`.
+
 ## Still open / needs your decision
 
 1. **Verify Sarvam Vision's actual scope** (product photos vs. document/OCR-only) against current Sarvam docs before trusting it as the catalog-vision primary — see the flag in `model_router.py`, `sarvam_client.py`, and `architecture.md` §8.
-2. **Enable `USE_LOCAL_MODELS=true`** before real pilot traffic — it's no longer optional in practice now that OpenAI isn't there as a backstop.
-3. **`migrations/0002_hybrid_search.sql`** (Scheme RAG) is still undeployable — the table it alters is never created. Not touched by this update; see `DELETE_LIST.md` section C.
-4. **Negotiation agent** — not built. Design constraint documented in `architecture.md` §8: the LLM must never see `seller_profiles.minimum_price` directly; any below-floor sale must be blocked in code.
+2. **Verify Flux Pro's endpoint/payload shape** against your account's current docs — `flux_poster_client.py`'s request/response format is a best-effort implementation, not confirmed live. Any mismatch degrades safely to the Pillow tier, it doesn't break the flow.
+3. **Enable `USE_LOCAL_MODELS=true`** before real pilot traffic — it's no longer optional in practice now that OpenAI isn't there as a backstop.
+4. **`migrations/0002_hybrid_search.sql`** (Scheme RAG) is still undeployable — the table it alters is never created. Not touched by this update; see `DELETE_LIST.md` section C.
+5. **Negotiation agent's offer extraction** is a single-amount regex (same limitation as `grounding_verifier.py`'s assertion extraction) — a message with multiple numbers only picks up the first one. Fine for single-item bargaining; revisit if multi-item negotiation becomes common.

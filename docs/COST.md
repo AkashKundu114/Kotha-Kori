@@ -10,7 +10,7 @@
 | Product photo identification (Vision) | **Sarvam Vision** | Local Ollama vision (`qwen2-vl`) |
 | Speech-to-text | **Saaras V3** | Self-hosted `faster-whisper` (free, always available) |
 | Bengali↔English translation / Banglish normalization | **Sarvam** `/translate` | Your self-hosted `sarvam-translate` box, if configured → else local Ollama |
-| Poster generation | **Flux Pro** (optional) | Pillow composite (`poster_composer.py`, free, always works) |
+| Poster generation | **Flux Pro** (optional, real API integration in `flux_poster_client.py`) | Pillow composite (`poster_composer.py`, free, always works — this is the tier that actually ships if `FLUX_API_KEY` is blank or Flux fails for any reason) |
 
 Each cheap-vs-fallback decision is gated by the tier's own self-reported
 confidence — same mechanism regardless of which tier produced it, see

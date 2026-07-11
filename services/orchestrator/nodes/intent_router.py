@@ -13,11 +13,12 @@ FINANCIAL_KEYWORDS = {"bikri", "বিক্রি", "kharach", "খরচ", "hi
 REPORT_KEYWORDS = {"report", "রিপোর্ট", "maaser hisab", "মাসের হিসাব"}
 MARKET_KEYWORDS = {"ki banabo", "কি বানাবো", "bazar", "বাজার", "chahida", "চাহিদা", "demand"}
 PRICING_KEYWORDS = {"দাম", "কত দামে", "price", "koto dam", "দাম কত"}
+NEGOTIATION_KEYWORDS = {"দরদাম", "দর কষাকষি", "bargain", "negotiate", "কমান", "কম দামে বলেছে"}
 
 INTENT_CLASSIFY_SYSTEM = (
     "তুমি কোথা-খাতার ইনটেন্ট ক্লাসিফায়ার।\n"
     "ব্যবহারকারীর বার্তা পড়ে নিচের একটি ক্যাটাগরি বেছে নাও এবং শুধু JSON ফেরত দাও:\n"
-    '{"feature": "LEDGER" | "LEDGER_REPORT" | "MARKET" | "PRICING" | "UNKNOWN", "confidence": <0.0-1.0>}'
+    '{"feature": "LEDGER" | "LEDGER_REPORT" | "MARKET" | "PRICING" | "NEGOTIATION" | "UNKNOWN", "confidence": <0.0-1.0>}'
 )
 
 
@@ -28,6 +29,8 @@ async def classify_intent(state: ConversationState) -> dict:
         return {"active_feature": "LEDGER_REPORT", "trace": ["intent_router:keyword:LEDGER_REPORT"]}
     if any(k in text for k in FINANCIAL_KEYWORDS):
         return {"active_feature": "LEDGER", "trace": ["intent_router:keyword:LEDGER"]}
+    if any(k in text for k in NEGOTIATION_KEYWORDS):
+        return {"active_feature": "NEGOTIATION", "trace": ["intent_router:keyword:NEGOTIATION"]}
     if any(k in text for k in PRICING_KEYWORDS):
         return {"active_feature": "PRICING", "trace": ["intent_router:keyword:PRICING"]}
     if any(k in text for k in MARKET_KEYWORDS):
