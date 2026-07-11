@@ -13,7 +13,6 @@ from sqlalchemy import (
     ARRAY,
     DateTime,
 )
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -40,7 +39,7 @@ class User(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     whatsapp_number: Mapped[str] = mapped_column(
-        String(15), unique=True, nullable=False
+        String(20), unique=True, nullable=False
     )
     name: Mapped[str | None] = mapped_column(String(255))
     shg_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("shg_groups.id"))
@@ -96,6 +95,7 @@ class CatalogCreation(Base):
     processed_image_s3_key: Mapped[str | None] = mapped_column(String(500))
     product_type: Mapped[str | None] = mapped_column(String(100))
     caption_bengali: Mapped[str | None] = mapped_column(Text)
+    ad_caption_bengali: Mapped[str | None] = mapped_column(Text)
     price_suggestion_min: Mapped[float | None] = mapped_column(Numeric(10, 2))
     price_suggestion_max: Mapped[float | None] = mapped_column(Numeric(10, 2))
     vision_model_used: Mapped[str | None] = mapped_column(String(30))
@@ -112,7 +112,7 @@ class MarketPrice(Base):
 
     time: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True)
     block: Mapped[str] = mapped_column(String(100), primary_key=True)
-    district: Mapped[str] = mapped_column(String(100))
+    district: Mapped[str | None] = mapped_column(String(100))
     product_category: Mapped[str] = mapped_column(String(100), primary_key=True)
     avg_price_inr_per_unit: Mapped[float | None] = mapped_column(Numeric(8, 2))
     unit: Mapped[str | None] = mapped_column(String(20))

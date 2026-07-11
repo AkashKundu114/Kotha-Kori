@@ -1,10 +1,46 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 
 from services.orchestrator.state import ConversationState
-from services.orchestrator.model_router import route_completion, TaskCriticality
+from services.orchestrator.model_router import (
+    route_completion,
+    route_translation,
+    TaskCriticality,
+    ModelUnavailableError,
+)
+
+logger = logging.getLogger("ledger_node")
+
+# Rural voice notes routinely code-mix Bengali and English ("500 taka bikri
+# hoise"). Only worth a translation call when the text actually looks mixed —
+# not on every message, to keep this near-zero cost. A cheap character-ratio
+# heuristic, not a model call.
+_LATIN_LETTER_RE = re.compile(r"[A-Za-z]")
+_BENGALI_LETTER_RE = re.compile(r"[\u0980-\u09FF]")
+_BANGLISH_LATIN_RATIO_THRESHOLD = 0.35
+
+
+def _looks_code_mixed(text: str) -> bool:
+    latin = len(_LATIN_LETTER_RE.findall(text))
+    bengali = len(_BENGALI_LETTER_RE.findall(text))
+    total_letters = latin + bengali
+    if total_letters < 6:  # too short to judge — don't bother translating
+        return False
+    return (latin / total_letters) >= _BANGLISH_LATIN_RATIO_THRESHOLD
+
+
+async def _normalize_transcript(transcript: str) -> str:
+    if not _looks_code_mixed(transcript):
+        return transcript
+    try:
+        result = await route_translation(transcript, target_lang="bn-IN")
+        return result["text"] or transcript
+    except ModelUnavailableError:
+        logger.warning("translation normalization failed, extracting from raw transcript instead")
+        return transcript
 
 EXTRACTION_SYSTEM = (
     "তুমি বাংলা আর্থিক তথ্য নিষ্কাশনকারী। নিচের বাংলা টেক্সট থেকে\n"
@@ -18,15 +54,16 @@ EXTRACTION_SYSTEM = (
 )
 
 BASE_CONFIDENCE_FLOOR = 0.80
-
 MAX_FLOOR_ADJUSTMENT = 0.12
+MODEL_DOWN_MESSAGE = (
+    "এই মুহূর্তে হিসাব প্রসেস করতে সমস্যা হচ্ছে। একটু পরে আবার চেষ্টা করুন।"
+)
 
 
 def _personalized_confidence_floor(user_profile: dict | None) -> float:
     if not user_profile:
         return BASE_CONFIDENCE_FLOOR
     correction_rate = float(user_profile.get("ledger_correction_rate", 0.0) or 0.0)
-
     adjustment = min(MAX_FLOOR_ADJUSTMENT, correction_rate * MAX_FLOOR_ADJUSTMENT * 2)
     return min(0.95, BASE_CONFIDENCE_FLOOR + adjustment)
 
@@ -36,15 +73,24 @@ def _strip_json_fences(text: str) -> str:
 
 
 async def ledger_extract_node(state: ConversationState) -> dict:
-    transcript = state.get("raw_input_transcript") or state.get("raw_input_text") or ""
+    original_transcript = state.get("raw_input_transcript") or state.get("raw_input_text") or ""
+    transcript = await _normalize_transcript(original_transcript)
     confidence_floor = _personalized_confidence_floor(state.get("user_profile"))
 
-    result = await route_completion(
-        system=EXTRACTION_SYSTEM,
-        prompt=transcript,
-        criticality=TaskCriticality.ROUTINE,
-        confidence_floor=confidence_floor,
-    )
+    try:
+        result = await route_completion(
+            system=EXTRACTION_SYSTEM,
+            prompt=transcript,
+            criticality=TaskCriticality.ROUTINE,
+            confidence_floor=confidence_floor,
+        )
+    except ModelUnavailableError:
+        return {
+            "pending_ledger_entry": None,
+            "awaiting_confirmation": False,
+            "outbound_messages": [{"type": "text", "body": MODEL_DOWN_MESSAGE}],
+            "trace": ["ledger_extract_node:model_unavailable"],
+        }
 
     try:
         parsed = json.loads(_strip_json_fences(result["text"]))
@@ -76,9 +122,7 @@ async def ledger_extract_node(state: ConversationState) -> dict:
         "awaiting_confirmation": True,
         "ledger_confirmation_turns": 0,
         "outbound_messages": [{"type": "text", "body": confirmation}],
-        "trace": [
-            f"ledger_extract_node:confirm:{result['model_used']}:floor={confidence_floor:.2f}"
-        ],
+        "trace": [f"ledger_extract_node:confirm:{result['model_used']}:floor={confidence_floor:.2f}"],
     }
 
 

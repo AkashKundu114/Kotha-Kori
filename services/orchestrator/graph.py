@@ -12,6 +12,7 @@ from services.orchestrator.nodes.ledger_confirm_node import ledger_confirm_node
 from services.orchestrator.nodes.ledger_report_node import ledger_report_node
 from services.orchestrator.nodes.catalog_node import catalog_node
 from services.orchestrator.nodes.market_predictor_node import market_predictor_node
+from services.orchestrator.nodes.conversation_node import general_conversation_node
 from shared.config.settings import get_settings
 
 
@@ -38,14 +39,6 @@ def _route_after_intent(state: ConversationState) -> str:
     return "unhandled"
 
 
-async def _unhandled_node(state: ConversationState) -> dict:
-    msg = "আমি হিসাব রাখতে, পণ্যের বিজ্ঞাপন বানাতে, আর বাজারের " "পরামর্শ দিতে পারি। কি দরকার আপনার?"
-    return {
-        "outbound_messages": [{"type": "text", "body": msg}],
-        "trace": ["unhandled_node"],
-    }
-
-
 def build_graph() -> StateGraph:
     graph = StateGraph(ConversationState)
 
@@ -57,7 +50,7 @@ def build_graph() -> StateGraph:
     graph.add_node("ledger_report", ledger_report_node)
     graph.add_node("catalog", catalog_node)
     graph.add_node("market", market_predictor_node)
-    graph.add_node("unhandled", _unhandled_node)
+    graph.add_node("unhandled", general_conversation_node)
 
     graph.set_entry_point("load_user_profile")
     graph.add_conditional_edges(
@@ -91,9 +84,20 @@ def build_graph() -> StateGraph:
     return graph
 
 
+_compiled_graph = None
+
+
 async def get_compiled_graph():
+    """Compiled once, reused — recompiling per-turn would reopen a Postgres
+    checkpointer connection on every message."""
+    global _compiled_graph
+    if _compiled_graph is not None:
+        return _compiled_graph
+
     s = get_settings()
-    async with AsyncPostgresSaver.from_conn_string(s.database_url) as checkpointer:
-        await checkpointer.setup()
-        graph = build_graph()
-        return graph.compile(checkpointer=checkpointer)
+    checkpointer_ctx = AsyncPostgresSaver.from_conn_string(s.database_url)
+    checkpointer = await checkpointer_ctx.__aenter__()
+    await checkpointer.setup()
+    graph = build_graph()
+    _compiled_graph = graph.compile(checkpointer=checkpointer)
+    return _compiled_graph

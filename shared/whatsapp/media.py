@@ -2,7 +2,7 @@ import httpx
 
 from shared.config.settings import get_settings
 
-MAX_AUDIO_BYTES = 6 * 1024 * 1024
+MAX_AUDIO_BYTES = 6 * 1024 * 1024   # ~3 min OGG/OPUS, generous margin
 MAX_IMAGE_BYTES = 5 * 1024 * 1024
 
 
@@ -12,7 +12,7 @@ class MediaTooLargeError(Exception):
 
 async def _download(media_id: str, max_bytes: int | None = None) -> bytes:
     s = get_settings()
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=15.0) as client:
         url_resp = await client.get(
             f"https://graph.facebook.com/v19.0/{media_id}",
             headers={"Authorization": f"Bearer {s.wa_access_token}"},

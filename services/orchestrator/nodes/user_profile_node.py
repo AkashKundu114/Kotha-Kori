@@ -10,12 +10,20 @@ from shared.db.session import get_db_session
 async def load_user_profile_node(state: ConversationState) -> dict:
     whatsapp_number = state["whatsapp_number"]
 
-    async with get_db_session() as db:
-        user = (
-            await db.execute(
-                select(User).where(User.whatsapp_number == whatsapp_number)
-            )
-        ).scalar_one_or_none()
+    try:
+        async with get_db_session() as db:
+            user = (
+                await db.execute(select(User).where(User.whatsapp_number == whatsapp_number))
+            ).scalar_one_or_none()
+    except Exception:
+        # DB hiccup shouldn't crash the turn — treat as a (safe) new user and
+        # let onboarding retry; the alternative is a silent dead end.
+        return {
+            "is_new_user": True,
+            "user_id": None,
+            "user_profile": None,
+            "trace": ["load_user_profile:db_error_treated_as_new_user"],
+        }
 
     if user is None:
         return {

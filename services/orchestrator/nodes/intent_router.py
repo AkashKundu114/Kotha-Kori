@@ -1,20 +1,15 @@
 from __future__ import annotations
 
-from services.orchestrator.state import ConversationState
-from services.orchestrator.model_router import route_completion, TaskCriticality
+import json
 
-FINANCIAL_KEYWORDS = {
-    "bikri",
-    "বিক্রি",
-    "kharach",
-    "খরচ",
-    "hisab",
-    "হিসাব",
-    "taka",
-    "টাকা",
-    "labh",
-    "লাভ",
-}
+from services.orchestrator.state import ConversationState
+from services.orchestrator.model_router import (
+    route_completion,
+    TaskCriticality,
+    ModelUnavailableError,
+)
+
+FINANCIAL_KEYWORDS = {"bikri", "বিক্রি", "kharach", "খরচ", "hisab", "হিসাব", "taka", "টাকা", "labh", "লাভ"}
 REPORT_KEYWORDS = {"report", "রিপোর্ট", "maaser hisab", "মাসের হিসাব"}
 MARKET_KEYWORDS = {"ki banabo", "কি বানাবো", "bazar", "বাজার", "chahida", "চাহিদা", "demand"}
 
@@ -26,15 +21,10 @@ INTENT_CLASSIFY_SYSTEM = (
 
 
 async def classify_intent(state: ConversationState) -> dict:
-    text = (
-        state.get("raw_input_text") or state.get("raw_input_transcript") or ""
-    ).lower()
+    text = (state.get("raw_input_text") or state.get("raw_input_transcript") or "").lower()
 
     if any(k in text for k in REPORT_KEYWORDS):
-        return {
-            "active_feature": "LEDGER_REPORT",
-            "trace": ["intent_router:keyword:LEDGER_REPORT"],
-        }
+        return {"active_feature": "LEDGER_REPORT", "trace": ["intent_router:keyword:LEDGER_REPORT"]}
     if any(k in text for k in FINANCIAL_KEYWORDS):
         return {"active_feature": "LEDGER", "trace": ["intent_router:keyword:LEDGER"]}
     if any(k in text for k in MARKET_KEYWORDS):
@@ -43,12 +33,14 @@ async def classify_intent(state: ConversationState) -> dict:
     if not text.strip():
         return {"active_feature": "IDLE", "trace": ["intent_router:empty_input"]}
 
-    result = await route_completion(
-        system=INTENT_CLASSIFY_SYSTEM,
-        prompt=text,
-        criticality=TaskCriticality.ROUTINE,
-    )
-    import json
+    try:
+        result = await route_completion(
+            system=INTENT_CLASSIFY_SYSTEM, prompt=text, criticality=TaskCriticality.ROUTINE
+        )
+    except ModelUnavailableError:
+        # Keyword matching already failed above; without the model we can't
+        # classify — fall back to the unhandled-feature menu rather than crash.
+        return {"active_feature": "IDLE", "trace": ["intent_router:model_unavailable"]}
 
     try:
         parsed = json.loads(result["text"])

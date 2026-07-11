@@ -7,4 +7,4 @@ COPY shared/ shared/
 COPY services/ services/
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
-CMD ["celery", "-A", "services.orchestrator.celery_entrypoint", "worker", "--loglevel=info", "--concurrency=6"]
+CMD ["celery", "-A", "services.orchestrator.celery_entrypoint", "worker", "--loglevel=info", "--concurrency=4"]

@@ -50,11 +50,13 @@ def process_product_image(raw_bytes: bytes) -> tuple[bytes | None, str | None]:
     if error:
         return None, error
 
-    cutout = remove(raw_bytes, session=_get_session())
-    cutout_img = Image.open(io.BytesIO(cutout)).convert("RGBA")
-
-    background = _gradient_background(cutout_img.size).convert("RGBA")
-    composite = Image.alpha_composite(background, cutout_img).convert("RGB")
+    try:
+        cutout = remove(raw_bytes, session=_get_session())
+        cutout_img = Image.open(io.BytesIO(cutout)).convert("RGBA")
+        background = _gradient_background(cutout_img.size).convert("RGBA")
+        composite = Image.alpha_composite(background, cutout_img).convert("RGB")
+    except Exception:
+        return None, "ছবি প্রসেস করতে সমস্যা হয়েছে। আবার পাঠান।"
 
     out = io.BytesIO()
     composite.save(out, format="PNG", optimize=True)

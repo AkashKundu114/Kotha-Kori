@@ -1,9 +1,12 @@
 from celery import Celery
 import asyncio
+import logging
 
 from services.orchestrator.graph import get_compiled_graph
 from shared.whatsapp.sender import send_text
 from shared.config.settings import get_settings
+
+logger = logging.getLogger("celery_entrypoint")
 
 s = get_settings()
 celery_app = Celery("kotha_khata_orchestrator", broker=s.redis_url, backend=s.redis_url)
@@ -18,12 +21,31 @@ def process_turn(whatsapp_number: str, turn_input: dict):
 
 
 async def _process_turn_async(whatsapp_number: str, turn_input: dict):
-    graph = await get_compiled_graph()
-    config = {"configurable": {"thread_id": whatsapp_number}}
-
-    state_update = {"whatsapp_number": whatsapp_number, **turn_input}
-    result = await graph.ainvoke(state_update, config=config)
+    """Any exception anywhere in the graph — a bad LLM response, a DB hiccup,
+    a bug in a node — degrades to a friendly Bengali message instead of
+    leaving the user in silence or crashing the worker."""
+    try:
+        graph = await get_compiled_graph()
+        config = {"configurable": {"thread_id": whatsapp_number}}
+        state_update = {"whatsapp_number": whatsapp_number, **turn_input}
+        result = await graph.ainvoke(state_update, config=config)
+    except Exception:
+        logger.exception("process_turn failed for %s", whatsapp_number)
+        await send_text(whatsapp_number, "দুঃখিত, একটু সমস্যা হয়েছে। আবার চেষ্টা করুন।")
+        return
 
     for msg in result.get("outbound_messages", []):
-        if msg["type"] == "text":
-            await send_text(whatsapp_number, msg["body"])
+        try:
+            if msg["type"] == "text":
+                await send_text(whatsapp_number, msg["body"])
+            elif msg["type"] == "document":
+                from shared.whatsapp.sender import send_document
+
+                await send_document(whatsapp_number, msg["url"], msg["filename"], msg.get("caption", ""))
+            elif msg["type"] == "image":
+                from shared.whatsapp.sender import send_image
+
+                await send_image(whatsapp_number, msg["url"], msg.get("caption", ""))
+        except Exception:
+            logger.exception("failed to deliver one outbound message to %s", whatsapp_number)
+            # keep going — don't let one failed send block the rest of the turn's messages

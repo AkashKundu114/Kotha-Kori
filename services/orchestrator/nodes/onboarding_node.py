@@ -9,12 +9,15 @@ WELCOME = (
     "শুরু করতে আপনার নাম বলুন।"
 )
 
+_MAX_FIELD_LEN = 100  # a name/block reply this long is almost certainly noise
+
 
 async def onboarding_node(state: ConversationState) -> dict:
     step = state.get("onboarding_step", "WELCOME")
     text = (
-        state.get("raw_input_text") or state.get("raw_input_transcript") or ""
-    ).strip()
+        (state.get("raw_input_text") or state.get("raw_input_transcript") or "")
+        .strip()[:_MAX_FIELD_LEN]
+    )
 
     if step == "WELCOME":
         return {
@@ -24,16 +27,24 @@ async def onboarding_node(state: ConversationState) -> dict:
         }
 
     if step == "AWAIT_NAME":
+        if not text:
+            return {
+                "outbound_messages": [{"type": "text", "body": "আপনার নাম বলুন বা লিখুন।"}],
+                "trace": ["onboarding_node:empty_name"],
+            }
         return {
             "onboarding_name": text,
             "onboarding_step": "AWAIT_BLOCK",
-            "outbound_messages": [
-                {"type": "text", "body": f"{text} দি, আপনি কোন ব্লকে থাকেন?"}
-            ],
+            "outbound_messages": [{"type": "text", "body": f"{text} দি, আপনি কোন ব্লকে থাকেন?"}],
             "trace": ["onboarding_node:got_name"],
         }
 
     if step == "AWAIT_BLOCK":
+        if not text:
+            return {
+                "outbound_messages": [{"type": "text", "body": "আপনার ব্লকের নাম লিখুন।"}],
+                "trace": ["onboarding_node:empty_block"],
+            }
         return {
             "onboarding_block": text,
             "onboarding_step": "AWAIT_CONSENT",
@@ -60,16 +71,21 @@ async def onboarding_node(state: ConversationState) -> dict:
                 ],
                 "trace": ["onboarding_node:consent_not_given"],
             }
-        user_id = await _create_user(state)
+        try:
+            user_id = await _create_user(state)
+        except Exception:
+            return {
+                "outbound_messages": [
+                    {"type": "text", "body": "একটু সমস্যা হয়েছে। একটু পরে আবার 'হ্যাঁ' লিখুন।"}
+                ],
+                "trace": ["onboarding_node:create_user_failed"],
+            }
         return {
             "user_id": user_id,
             "is_new_user": False,
             "onboarding_step": "DONE",
             "outbound_messages": [
-                {
-                    "type": "text",
-                    "body": "✨ আপনার কোথা-খাতা তৈরি! আজকের বিক্রি বা খরচ ভয়েসে বলুন। 🎙️",
-                }
+                {"type": "text", "body": "✨ আপনার কোথা-খাতা তৈরি! আজকের বিক্রি বা খরচ ভয়েসে বলুন। 🎙️"}
             ],
             "trace": ["onboarding_node:complete"],
         }

@@ -3,11 +3,7 @@ from __future__ import annotations
 import json
 import re
 
-from services.orchestrator.model_router import (
-    route_vision_completion,
-    route_completion,
-    TaskCriticality,
-)
+from services.orchestrator.model_router import route_vision_completion, route_completion, TaskCriticality
 
 VISION_PROMPT = (
     "এই ছবিতে কী পণ্য দেখছ? শুধুমাত্র এই JSON ফরম্যাটে ফেরত দাও:\n"
@@ -17,14 +13,16 @@ VISION_PROMPT = (
     ' "category": "<textile|food|handicraft|agriculture|other>"}'
 )
 
+# One call, two captions: a warm WhatsApp-forward message for the customer
+# group, and a short punchy ad-style caption for wider promo use.
 CAPTION_SYSTEM = (
     "তুমি গ্রামীণ স্বনির্ভর গোষ্ঠীর মহিলাদের জন্য একজন বিজ্ঞাপন লেখক।\n"
-    "দেওয়া পণ্যের তথ্যের ভিত্তিতে সহজ, আকর্ষণীয় বাংলায় একটি ছোট বিক্রির বার্তা লেখো।\n"
-    "নিয়ম:\n"
-    "1. ৪ লাইনের বেশি নয়।\n"
-    "2. পণ্যের নাম, ১-২টি বৈশিষ্ট্য, একটি দামের পরিসীমা (₹X-₹Y অনুমান করে, বাস্তবসম্মত), একটি সংক্ষিপ্ত CTA।\n"
-    "3. অতিরিক্ত প্রতিশ্রুতি বা মিথ্যা দাবি করো না — শুধু যা ছবিতে দেখা যাচ্ছে তার ভিত্তিতে লেখো।\n"
-    "4. শুধু বার্তাটি ফেরত দাও, অন্য কোনো ব্যাখ্যা নয়।"
+    "দেওয়া পণ্যের তথ্যের ভিত্তিতে, শুধুমাত্র এই JSON ফরম্যাটে ফেরত দাও, অন্য কিছু লিখো না:\n\n"
+    '{"whatsapp_caption": "<৪ লাইনের মধ্যে: পণ্যের নাম, ১-২টি বৈশিষ্ট্য, '
+    'দামের পরিসীমা (₹X-₹Y), সংক্ষিপ্ত CTA — কাস্টমার গ্রুপে পাঠানোর উপযোগী, উষ্ণ সুরে>",\n'
+    ' "ad_caption": "<২ লাইনের মধ্যে: হুক + জরুরিতা/আকর্ষণ + CTA — বিজ্ঞাপনের জন্য '
+    'সংক্ষিপ্ত ও আকর্ষণীয়, বেশি ইমোজি নয়>"}\n\n'
+    "নিয়ম: অতিরিক্ত প্রতিশ্রুতি বা মিথ্যা দাবি করো না — শুধু যা ছবিতে দেখা যাচ্ছে তার ভিত্তিতে লেখো।"
 )
 
 _PRICE_RANGES = {
@@ -35,12 +33,13 @@ _PRICE_RANGES = {
     "other": (100, 600),
 }
 
+_FALLBACK_WHATSAPP_CAPTION = "✨ নতুন পণ্য এসেছে! বিস্তারিত জানতে যোগাযোগ করুন।"
+_FALLBACK_AD_CAPTION = "নতুন পণ্য এখন উপলব্ধ — আজই অর্ডার করুন!"
+
 
 async def analyze_product_image(image_bytes: bytes) -> dict:
     result = await route_vision_completion(
-        prompt=VISION_PROMPT,
-        image_bytes=image_bytes,
-        criticality=TaskCriticality.ROUTINE,
+        prompt=VISION_PROMPT, image_bytes=image_bytes, criticality=TaskCriticality.ROUTINE
     )
     try:
         parsed = json.loads(re.sub(r"```json|```", "", result["text"]).strip())
@@ -52,9 +51,7 @@ async def analyze_product_image(image_bytes: bytes) -> dict:
     return parsed
 
 
-async def generate_caption(
-    product_info: dict, shg_name: str = ""
-) -> tuple[str, tuple[float, float]]:
+async def generate_captions(product_info: dict, shg_name: str = "") -> tuple[dict, tuple[float, float]]:
     category = product_info.get("category", "other")
     price_min, price_max = _PRICE_RANGES.get(category, _PRICE_RANGES["other"])
 
@@ -62,13 +59,19 @@ async def generate_caption(
         f"পণ্যের তথ্য: {json.dumps(product_info, ensure_ascii=False)}\n"
         f"দামের পরিসীমা নির্দেশিকা: ₹{price_min}-₹{price_max}\n"
         f"গোষ্ঠীর নাম (যদি থাকে): {shg_name}\n\n"
-        "উপরের তথ্যের ভিত্তিতে বিক্রির বার্তা লেখো।"
+        "উপরের তথ্যের ভিত্তিতে দুটি ক্যাপশন লেখো।"
     )
     result = await route_completion(
-        system=CAPTION_SYSTEM,
-        prompt=prompt,
-        criticality=TaskCriticality.ROUTINE,
-        confidence_floor=0.0,
+        system=CAPTION_SYSTEM, prompt=prompt, criticality=TaskCriticality.ROUTINE, confidence_floor=0.0
     )
 
-    return result["text"].strip(), (price_min, price_max)
+    try:
+        parsed = json.loads(re.sub(r"```json|```", "", result["text"]).strip())
+        captions = {
+            "whatsapp_caption": parsed.get("whatsapp_caption") or _FALLBACK_WHATSAPP_CAPTION,
+            "ad_caption": parsed.get("ad_caption") or _FALLBACK_AD_CAPTION,
+        }
+    except (json.JSONDecodeError, TypeError):
+        captions = {"whatsapp_caption": _FALLBACK_WHATSAPP_CAPTION, "ad_caption": _FALLBACK_AD_CAPTION}
+
+    return captions, (price_min, price_max)

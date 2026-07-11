@@ -15,48 +15,39 @@ from shared.db.session import get_db_session
 
 _TEMPLATE_DIR = "services/pdf_service/templates"
 
+# autoescape=True is load-bearing: every field rendered here can originate
+# from user voice input via LLM extraction. Combined with base_url=None below
+# (no remote fetch), this closes an SSRF/injection path in the PDF renderer.
 _env = Environment(loader=FileSystemLoader(_TEMPLATE_DIR), autoescape=True)
 
 _TAG_RE = re.compile(r"<[^>]*>")
 
 BENGALI_MONTHS = {
-    1: "জানুয়ারি",
-    2: "ফেব্রুয়ারি",
-    3: "মার্চ",
-    4: "এপ্রিল",
-    5: "মে",
-    6: "জুন",
-    7: "জুলাই",
-    8: "আগস্ট",
-    9: "সেপ্টেম্বর",
-    10: "অক্টোবর",
-    11: "নভেম্বর",
-    12: "ডিসেম্বর",
+    1: "জানুয়ারি", 2: "ফেব্রুয়ারি", 3: "মার্চ", 4: "এপ্রিল", 5: "মে", 6: "জুন",
+    7: "জুলাই", 8: "আগস্ট", 9: "সেপ্টেম্বর", 10: "অক্টোবর", 11: "নভেম্বর", 12: "ডিসেম্বর",
 }
 
 
 def _clean(value: str | None, max_len: int = 120) -> str:
+    """Strip tags outright rather than relying on escaping alone — defense in
+    depth for a renderer (WeasyPrint) that would otherwise have outbound
+    network access if a tag with a remote src slipped through."""
     if not value:
         return ""
-    stripped = _TAG_RE.sub("", value)
-    return stripped.strip()[:max_len]
+    return _TAG_RE.sub("", value).strip()[:max_len]
 
 
 async def generate_monthly_report(user_id: str, year: int, month: int) -> dict:
     s = get_settings()
 
     async with get_db_session() as db:
-        user = (
-            await db.execute(select(User).where(User.id == user_id))
-        ).scalar_one_or_none()
+        user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
         if user is None:
             raise ValueError(f"generate_monthly_report: unknown user_id={user_id}")
 
         shg = None
         if user.shg_id:
-            shg = (
-                await db.execute(select(SHGGroup).where(SHGGroup.id == user.shg_id))
-            ).scalar_one_or_none()
+            shg = (await db.execute(select(SHGGroup).where(SHGGroup.id == user.shg_id))).scalar_one_or_none()
 
         period_start = date(year, month, 1)
         period_end = date(year + 1, 1, 1) if month == 12 else date(year, month + 1, 1)
@@ -108,18 +99,11 @@ async def generate_monthly_report(user_id: str, year: int, month: int) -> dict:
     s3_key = f"reports/{user_id}/{year}/{month}/{uuid.uuid4().hex[:8]}.pdf"
     s3 = get_s3_client()
     s3.put_object(
-        Bucket=s.s3_bucket,
-        Key=s3_key,
-        Body=pdf_bytes,
-        ContentType="application/pdf",
-        ServerSideEncryption="AES256",
+        Bucket=s.s3_bucket, Key=s3_key, Body=pdf_bytes,
+        ContentType="application/pdf", ServerSideEncryption="AES256",
     )
     s3_url = s3.generate_presigned_url(
         "get_object", Params={"Bucket": s.s3_bucket, "Key": s3_key}, ExpiresIn=86400
     )
 
-    return {
-        "s3_url": s3_url,
-        "total_income": total_income,
-        "total_expense": total_expense,
-    }
+    return {"s3_url": s3_url, "total_income": total_income, "total_expense": total_expense}

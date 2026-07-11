@@ -6,7 +6,6 @@ redis[asyncio]==5.0.6
 celery==5.4.0
 sqlalchemy[asyncio]==2.0.30
 asyncpg==0.29.0
-pgvector==0.2.5
 openai==1.51.0
 langgraph==0.2.20
 langgraph-checkpoint-postgres==1.0.10

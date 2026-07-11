@@ -9,8 +9,7 @@
     .header h1 { font-size:20px; font-weight:700; }
     .header p { font-size:13px; opacity:0.9; margin-top:4px; }
     .summary { display:flex; gap:12px; padding:16px; background:#f8f9fa; }
-    .summary-card { flex:1; background:white; border-radius:8px; padding:12px; text-align:center;
-                    border:1px solid #e0e0e0; }
+    .summary-card { flex:1; background:white; border-radius:8px; padding:12px; text-align:center; border:1px solid #e0e0e0; }
     .summary-card .label { font-size:11px; color:#666; }
     .summary-card .value { font-size:18px; font-weight:700; margin-top:4px; }
     .income { color:#1e8449; } .expense { color:#c0392b; } .profit { color:#2e86c1; }
@@ -19,11 +18,9 @@
     td { padding:8px; border-bottom:1px solid #f0f0f0; font-size:12px; }
     tr:nth-child(even) { background:#f8f9fa; }
     .section-title { padding:12px 16px 4px; font-size:14px; font-weight:600; color:#1a5276; }
-    .disclaimer { margin:16px; padding:12px; background:#fef9e7; border:1px solid #f9ca24;
-                  border-radius:6px; font-size:10px; color:#7d6608; line-height:1.6; }
+    .disclaimer { margin:16px; padding:12px; background:#fef9e7; border:1px solid #f9ca24; border-radius:6px; font-size:10px; color:#7d6608; line-height:1.6; }
     .footer { text-align:center; padding:12px; font-size:10px; color:#999; }
-    .stamp { border:2px dashed #2e86c1; display:inline-block; padding:8px 16px;
-             border-radius:4px; font-size:11px; color:#2e86c1; margin:8px 16px; }
+    .stamp { border:2px dashed #2e86c1; display:inline-block; padding:8px 16px; border-radius:4px; font-size:11px; color:#2e86c1; margin:8px 16px; }
   </style>
 </head>
 <body>
@@ -32,42 +29,20 @@
     <p>{{ member_name }} | {{ shg_name }} | {{ district }} জেলা</p>
     <p>{{ month_bengali }} {{ year }} | তৈরি: {{ generated_date }}</p>
   </div>
-
   <div class="summary">
-    <div class="summary-card">
-      <div class="label">মোট আয়</div>
-      <div class="value income">₹{{ "{:,.0f}".format(total_income) }}</div>
-    </div>
-    <div class="summary-card">
-      <div class="label">মোট খরচ</div>
-      <div class="value expense">₹{{ "{:,.0f}".format(total_expense) }}</div>
-    </div>
-    <div class="summary-card">
-      <div class="label">নেট লাভ</div>
-      <div class="value profit">₹{{ "{:,.0f}".format(net_profit) }}</div>
-    </div>
+    <div class="summary-card"><div class="label">মোট আয়</div><div class="value income">₹{{ "{:,.0f}".format(total_income) }}</div></div>
+    <div class="summary-card"><div class="label">মোট খরচ</div><div class="value expense">₹{{ "{:,.0f}".format(total_expense) }}</div></div>
+    <div class="summary-card"><div class="label">নেট লাভ</div><div class="value profit">₹{{ "{:,.0f}".format(net_profit) }}</div></div>
   </div>
-
   <div class="section-title">আয়ের বিবরণ</div>
-  <table>
-    <tr><th>পণ্য/সেবা</th><th>পরিমাণ (₹)</th></tr>
-    {% for cat, amt in income_by_category.items() %}
-    <tr><td>{{ cat }}</td><td>₹{{ "{:,.0f}".format(amt) }}</td></tr>
-    {% endfor %}
+  <table><tr><th>পণ্য/সেবা</th><th>পরিমাণ (₹)</th></tr>
+    {% for cat, amt in income_by_category.items() %}<tr><td>{{ cat }}</td><td>₹{{ "{:,.0f}".format(amt) }}</td></tr>{% endfor %}
   </table>
-
   <div class="section-title">খরচের বিবরণ</div>
-  <table>
-    <tr><th>খরচের ধরন</th><th>পরিমাণ (₹)</th></tr>
-    {% for cat, amt in expense_by_category.items() %}
-    <tr><td>{{ cat }}</td><td>₹{{ "{:,.0f}".format(amt) }}</td></tr>
-    {% endfor %}
+  <table><tr><th>খরচের ধরন</th><th>পরিমাণ (₹)</th></tr>
+    {% for cat, amt in expense_by_category.items() %}<tr><td>{{ cat }}</td><td>₹{{ "{:,.0f}".format(amt) }}</td></tr>{% endfor %}
   </table>
-
-  <div style="margin:16px 16px 4px;">
-    <div class="stamp">কোথা-খাতা দ্বারা তৈরি | {{ generated_date }}</div>
-  </div>
-
+  <div style="margin:16px 16px 4px;"><div class="stamp">কোথা-খাতা দ্বারা তৈরি | {{ generated_date }}</div></div>
   <div class="disclaimer">
     <strong>গুরুত্বপূর্ণ:</strong> এই নথিটি {{ member_name }}-এর ব্যক্তিগত লেনদেনের রেকর্ডের ভিত্তিতে তৈরি।
     ব্যাংক ঋণ বা পঞ্চায়েত সভায় সহায়ক নথি হিসেবে ব্যবহার করা যেতে পারে।

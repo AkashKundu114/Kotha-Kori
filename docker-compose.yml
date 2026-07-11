@@ -1,14 +1,15 @@
 services:
   postgres:
-    image: pgvector/pgvector:pg16
+    image: postgres:16-alpine
     environment:
       POSTGRES_DB: kothkori
       POSTGRES_USER: kothkori
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d:ro
     ports:
-      - "127.0.0.1:5432:5432"
+      - "127.0.0.1:5432:5432"   # loopback only — never exposed to the host network
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "kothkori"]
       interval: 10s
@@ -20,7 +21,7 @@ services:
     volumes:
       - redisdata:/data
     ports:
-      - "127.0.0.1:6379:6379"
+      - "127.0.0.1:6379:6379"   # loopback only
     command: >
       sh -c "redis-server --appendonly yes --requirepass \"$$REDIS_PASSWORD\""
 
@@ -37,13 +38,18 @@ services:
       redis:
         condition: service_started
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import httpx; httpx.get('http://localhost:8000/health', timeout=3).raise_for_status()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
   orchestrator-worker:
     build:
       context: .
       dockerfile: services/orchestrator/Dockerfile
     env_file: .env
-    command: celery -A services.orchestrator.celery_entrypoint worker --loglevel=info --concurrency=6 -Q celery
+    command: celery -A services.orchestrator.celery_entrypoint worker --loglevel=info --concurrency=4 -Q celery
     depends_on:
       - redis
       - postgres
@@ -62,8 +68,21 @@ services:
       - gateway
     restart: unless-stopped
 
+  # Optional, free, self-hosted LLM fallback tier. Disabled unless you
+  # set USE_LOCAL_MODELS=true in .env and have a GPU box. No third-party
+  # API involved — this runs entirely inside your own infrastructure.
+  ollama:
+    image: ollama/ollama:latest
+    profiles: ["local-models"]
+    ports:
+      - "127.0.0.1:11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+    restart: unless-stopped
+
 volumes:
   pgdata:
   redisdata:
   caddy_data:
   caddy_config:
+  ollama_models:

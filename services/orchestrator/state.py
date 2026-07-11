@@ -20,6 +20,8 @@ class UserProfile(TypedDict, total=False):
     dialect_hint: str
     ledger_correction_rate: float
     trust_stage: str
+    block: str
+    district: str
 
 
 class ConversationState(TypedDict, total=False):

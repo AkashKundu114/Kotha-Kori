@@ -1,17 +1,18 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
-
 from services.orchestrator.state import ConversationState
-from services.orchestrator.model_router import route_completion, TaskCriticality
+from services.orchestrator.model_router import (
+    route_completion,
+    TaskCriticality,
+    ModelUnavailableError,
+)
 
 AFFIRMATIVE = {"হ্যাঁ", "হ্যা", "ha", "haan", "thik", "ঠিক", "ok", "okay", "👍"}
 NEGATIVE = {"না", "no", "na", "bhul", "ভুল", "ঠিক নয়"}
 
 MAX_CONFIRMATION_TURNS = 3
-
-
-MAX_REASONABLE_AMOUNT = 500_000
+MAX_REASONABLE_AMOUNT = 500_000  # ₹5 lakh per single voice-note transaction — anything
+                                  # above this is almost certainly a mis-extraction
 
 CORRECTION_SYSTEM = (
     "তুমি বাংলা আর্থিক তথ্য নিষ্কাশনকারী। ব্যবহারকারী একটি পূর্বের\n"
@@ -24,8 +25,7 @@ CORRECTION_SYSTEM = (
 
 
 def _validate_amount(amt: float) -> float | None:
-    """Reject NaN/inf and out-of-range amounts before they ever reach the DB.
-    See red-team.md HIGH-4."""
+    """Reject NaN/inf and out-of-range amounts before they ever reach the DB."""
     if amt != amt or amt in (float("inf"), float("-inf")):
         return None
     if amt < 0 or amt > MAX_REASONABLE_AMOUNT:
@@ -35,17 +35,13 @@ def _validate_amount(amt: float) -> float | None:
 
 async def ledger_confirm_node(state: ConversationState) -> dict:
     reply_raw = (
-        (state.get("raw_input_text") or state.get("raw_input_transcript") or "")
-        .strip()
-        .lower()
+        (state.get("raw_input_text") or state.get("raw_input_transcript") or "").strip().lower()
     )
     pending = state.get("pending_ledger_entry")
     turns = state.get("ledger_confirmation_turns", 0) + 1
 
     if not pending:
-        return _reset_with_message(
-            "একটু সমস্যা হয়েছে। আবার হিসাব বলুন।", trace="ledger_confirm_node:no_pending"
-        )
+        return _reset_with_message("একটু সমস্যা হয়েছে। আবার হিসাব বলুন।", trace="ledger_confirm_node:no_pending")
 
     if turns > MAX_CONFIRMATION_TURNS:
         return _reset_with_message(
@@ -71,21 +67,24 @@ def _looks_like_correction(text: str) -> bool:
     return any(ch.isdigit() for ch in text) or any("০" <= ch <= "৯" for ch in text)
 
 
-async def _apply_correction(
-    state: ConversationState, pending: dict, correction_text: str, turns: int
-) -> dict:
+async def _apply_correction(state: ConversationState, pending: dict, correction_text: str, turns: int) -> dict:
     prompt = (
         f"মূল বাক্য: {pending.get('raw_transcript', '')}\n"
         f"পূর্বের ফলাফল: {pending}\n"
         f"ব্যবহারকারীর সংশোধন: {correction_text}\n\n"
         "সংশোধন প্রয়োগ করে আপডেট করা JSON ফেরত দাও।"
     )
-    result = await route_completion(
-        system=CORRECTION_SYSTEM,
-        prompt=prompt,
-        criticality=TaskCriticality.ROUTINE,
-        confidence_floor=0.80,
-    )
+    try:
+        result = await route_completion(
+            system=CORRECTION_SYSTEM, prompt=prompt, criticality=TaskCriticality.ROUTINE, confidence_floor=0.80
+        )
+    except ModelUnavailableError:
+        return {
+            "awaiting_confirmation": True,
+            "ledger_confirmation_turns": turns,
+            "outbound_messages": [{"type": "text", "body": "এই মুহূর্তে সংশোধন প্রসেস করতে সমস্যা হচ্ছে। একটু পরে আবার চেষ্টা করুন।"}],
+            "trace": [f"ledger_confirm_node:model_unavailable:turn={turns}"],
+        }
 
     import json
     import re
@@ -96,9 +95,7 @@ async def _apply_correction(
         return {
             "awaiting_confirmation": True,
             "ledger_confirmation_turns": turns,
-            "outbound_messages": [
-                {"type": "text", "body": "সংশোধন বুঝতে পারলাম না। আবার বলুন?"}
-            ],
+            "outbound_messages": [{"type": "text", "body": "সংশোধন বুঝতে পারলাম না। আবার বলুন?"}],
             "trace": [f"ledger_confirm_node:correction_parse_failed:turn={turns}"],
         }
 
@@ -116,14 +113,9 @@ async def _apply_correction(
         "awaiting_confirmation": True,
         "ledger_confirmation_turns": turns,
         "outbound_messages": [
-            {
-                "type": "text",
-                "body": f"ঠিক আছে, আবার দেখুন:\n\n{_build_confirmation(updated)}",
-            }
+            {"type": "text", "body": f"ঠিক আছে, আবার দেখুন:\n\n{_build_confirmation(updated)}"}
         ],
-        "trace": [
-            f"ledger_confirm_node:correction_applied:turn={turns}:{result['model_used']}"
-        ],
+        "trace": [f"ledger_confirm_node:correction_applied:turn={turns}:{result['model_used']}"],
     }
 
 

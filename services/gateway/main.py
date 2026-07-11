@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Request, BackgroundTasks, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
-import hmac, hashlib, json, time, uuid
+import hmac, hashlib, json, time, uuid, logging
 
 import redis.asyncio as aioredis
 
@@ -15,11 +15,12 @@ from shared.whatsapp.media import (
     MediaTooLargeError,
 )
 
-app = FastAPI(title="Kotha-Khata Gateway", version="3.1.0")
-app.add_middleware(CORSMiddleware, allow_origins=["*"])
+logger = logging.getLogger("gateway")
+
+app = FastAPI(title="Kotha-Khata Gateway", version="1.0.0")
+app.add_middleware(CORSMiddleware, allow_origins=["*"])  # only client is Meta's webhook
 
 _redis: aioredis.Redis | None = None
-MAX_IMAGE_BYTES = 5 * 1024 * 1024
 DEDUP_TTL_SECONDS = 86400
 
 
@@ -50,37 +51,51 @@ async def verify_webhook(request: Request):
 
 @app.post("/webhook/whatsapp")
 async def receive_message(request: Request, background_tasks: BackgroundTasks):
-    s = get_settings()
-    body = await request.body()
-    sig = request.headers.get("X-Hub-Signature-256", "")
+    """Never raises. A malformed/hostile payload always gets a 200 'ok' so Meta
+    doesn't hammer us with retries — errors are logged and swallowed here,
+    not surfaced as 5xx to the webhook caller."""
+    try:
+        s = get_settings()
+        body = await request.body()
+        sig = request.headers.get("X-Hub-Signature-256", "")
 
-    expected = (
-        "sha256=" + hmac.new(s.wa_app_secret.encode(), body, hashlib.sha256).hexdigest()
-    )
-    if not hmac.compare_digest(sig, expected):
-        raise HTTPException(status_code=403)
+        expected = (
+            "sha256=" + hmac.new(s.wa_app_secret.encode(), body, hashlib.sha256).hexdigest()
+        )
+        if not hmac.compare_digest(sig, expected):
+            logger.warning("webhook signature mismatch — dropping payload")
+            raise HTTPException(status_code=403)
 
-    payload = json.loads(body)
-    msg = parse_webhook_payload(payload)
-    if not msg:
+        payload = json.loads(body)
+        msg = parse_webhook_payload(payload)
+        if not msg:
+            return {"status": "ok"}
+
+        if s.max_text_message_chars and msg.text and len(msg.text) > s.max_text_message_chars:
+            msg.text = msg.text[: s.max_text_message_chars]
+
+        redis = await get_redis()
+
+        was_new = await redis.set(
+            f"dedup:{msg.message_id}", "1", ex=DEDUP_TTL_SECONDS, nx=True
+        )
+        if not was_new:
+            return {"status": "ok"}  # Meta retry of an already-processed message
+
+        rate_key = f"ratelimit:{msg.from_number}:{int(time.time() // 3600)}"
+        count = await redis.incr(rate_key)
+        await redis.expire(rate_key, 3600)
+        if count > s.max_messages_per_hour:
+            return {"status": "ok"}  # soft-block, no reply — avoids a rate-limit reply loop
+
+        background_tasks.add_task(_dispatch_to_orchestrator, msg)
         return {"status": "ok"}
 
-    redis = await get_redis()
-
-    was_new = await redis.set(
-        f"dedup:{msg.message_id}", "1", ex=DEDUP_TTL_SECONDS, nx=True
-    )
-    if not was_new:
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("receive_message: unhandled error, swallowing to protect webhook")
         return {"status": "ok"}
-
-    rate_key = f"ratelimit:{msg.from_number}:{int(time.time() // 3600)}"
-    count = await redis.incr(rate_key)
-    await redis.expire(rate_key, 3600)
-    if count > s.max_messages_per_hour:
-        return {"status": "ok"}
-
-    background_tasks.add_task(_dispatch_to_orchestrator, msg)
-    return {"status": "ok"}
 
 
 async def _dispatch_to_orchestrator(msg):
@@ -129,7 +144,7 @@ async def _dispatch_to_orchestrator(msg):
         await send_text(msg.from_number, friendly)
 
     except Exception:
+        logger.exception("_dispatch_to_orchestrator: unhandled error for %s", msg.from_number)
         from shared.whatsapp.sender import send_text
 
         await send_text(msg.from_number, "দুঃখিত, একটু সমস্যা হয়েছে। আবার চেষ্টা করুন।")
-        raise

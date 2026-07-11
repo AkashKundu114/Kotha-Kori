@@ -21,7 +21,7 @@ def parse_webhook_payload(payload: dict) -> Optional[IncomingMessage]:
         entry = payload["entry"][0]
         change = entry["changes"][0]["value"]
         if "messages" not in change:
-            return None
+            return None  # delivery/read status update, not a message
 
         msg = change["messages"][0]
         base = IncomingMessage(
@@ -50,5 +50,5 @@ def parse_webhook_payload(payload: dict) -> Optional[IncomingMessage]:
             )
 
         return base
-    except (KeyError, IndexError):
+    except (KeyError, IndexError, TypeError, ValueError):
         return None

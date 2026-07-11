@@ -6,7 +6,9 @@ from sqlalchemy import text
 
 from shared.db.session import get_db_session
 
-MIN_SAMPLE_SIZE = 5
+MIN_SAMPLE_SIZE = 5  # k-anonymity floor: never surface a trend built from fewer
+                       # than 5 distinct sellers — each row represents a real
+                       # person's income. Do not lower this casually.
 
 
 async def block_sales_trend(block: str, weeks_back: int = 8) -> list[dict]:
@@ -16,21 +18,21 @@ async def block_sales_trend(block: str, weeks_back: int = 8) -> list[dict]:
         rows = (
             await db.execute(
                 text(
-                    "\n"
-                    "                SELECT\n"
-                    "                  le.category,\n"
-                    "                  date_trunc('week', le.entry_date) AS week,\n"
-                    "                  SUM(le.amount_inr) AS total_amount,\n"
-                    "                  COUNT(DISTINCT le.user_id) AS distinct_sellers\n"
-                    "                FROM ledger_entries le\n"
-                    "                JOIN users u ON u.id = le.user_id\n"
-                    "                WHERE u.block = :block\n"
-                    "                  AND le.entry_type = 'INCOME'\n"
-                    "                  AND le.entry_date >= :since\n"
-                    "                GROUP BY le.category, week\n"
-                    "                HAVING COUNT(DISTINCT le.user_id) >= :min_sample\n"
-                    "                ORDER BY week DESC\n"
-                    "            "
+                    """
+                    SELECT
+                      le.category,
+                      date_trunc('week', le.entry_date) AS week,
+                      SUM(le.amount_inr) AS total_amount,
+                      COUNT(DISTINCT le.user_id) AS distinct_sellers
+                    FROM ledger_entries le
+                    JOIN users u ON u.id = le.user_id
+                    WHERE u.block = :block
+                      AND le.entry_type = 'INCOME'
+                      AND le.entry_date >= :since
+                    GROUP BY le.category, week
+                    HAVING COUNT(DISTINCT le.user_id) >= :min_sample
+                    ORDER BY week DESC
+                    """
                 ),
                 {"block": block, "since": since, "min_sample": MIN_SAMPLE_SIZE},
             )
