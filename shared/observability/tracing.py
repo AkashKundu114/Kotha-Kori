@@ -9,8 +9,6 @@ _client = None
 
 
 def get_langfuse_client():
-    """Returns None (and traced() becomes a no-op) unless Langfuse keys are
-    configured — observability is optional, never a hard dependency."""
     global _client
     s = get_settings()
     if not s.langfuse_public_key:
@@ -45,7 +43,7 @@ def traced(name: str):
                             metadata={"duration_seconds": round(time.monotonic() - start, 3)},
                         )
                     except Exception:
-                        pass  # observability must never crash the request path
+                        pass  
 
         return wrapper
 

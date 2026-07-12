@@ -16,10 +16,7 @@ _MAX_POLL_ATTEMPTS = 20
 
 
 class FluxUnavailableError(Exception):
-    """Raised on any Flux Pro failure (missing key, HTTP error, timeout,
-    generation failure, or polling exhausted). Callers treat this exactly
-    like SarvamUnavailableError / ModelUnavailableError elsewhere — fall
-    through to the free Pillow fallback in poster_composer.py, never crash."""
+    pass
 
 
 async def generate_poster_image(

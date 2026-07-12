@@ -23,7 +23,6 @@ def test_minimum_price_overrides_a_lower_margin_based_floor():
 
 def test_market_average_pulls_price_up_but_stays_capped():
     result = _recommend(cost=100, margin=0.30, min_price=None, market_avg=1000)
-    # floor is 130; recommended should be pulled toward market but capped at floor*1.4
     assert result["recommended_price"] <= 130.0 * 1.4
     assert result["recommended_price"] >= result["floor_price"]
 

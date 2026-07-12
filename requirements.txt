@@ -21,12 +21,3 @@ pytest==8.2.2
 pytest-asyncio==0.23.7
 ruff==0.5.0
 mypy==1.10.0
-
-# NOTE: the `openai` package is NOT a required dependency anymore — no
-# OpenAI service is called anywhere in this codebase. It is only imported
-# lazily, inside services/translation_service/sarvam_client.py's
-# chat_completion_self_hosted(), as a *wire-protocol* client against your
-# own self-hosted vLLM box (which happens to speak the OpenAI-compatible
-# API shape). That function is optional and only used if you set
-# SARVAM_LOCAL_BASE_URL. Uncomment below only if you use that path:
-# openai==1.51.0

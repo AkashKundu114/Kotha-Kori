@@ -24,8 +24,6 @@ class _FakeSettings:
 
 
 def test_compose_poster_returns_none_without_font(monkeypatch):
-    """Missing font asset must degrade gracefully (None), never raise —
-    catalog_node falls back to plain photo delivery in that case."""
     monkeypatch.setattr(poster_composer, "get_settings", lambda: _FakeSettings())
     result = compose_poster(
         b"not-a-real-image", product_name="test", ad_caption="test", price_min=1, price_max=2

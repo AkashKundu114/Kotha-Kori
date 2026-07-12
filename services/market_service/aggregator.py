@@ -1,15 +1,9 @@
 from __future__ import annotations
-
 from datetime import date, timedelta
-
 from sqlalchemy import text
-
 from shared.db.session import get_db_session
 
-MIN_SAMPLE_SIZE = 5  # k-anonymity floor: never surface a trend built from fewer
-                       # than 5 distinct sellers — each row represents a real
-                       # person's income. Do not lower this casually.
-
+MIN_SAMPLE_SIZE = 5  
 
 async def block_sales_trend(block: str, weeks_back: int = 8) -> list[dict]:
     since = date.today() - timedelta(weeks=weeks_back)

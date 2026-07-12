@@ -28,5 +28,4 @@ def test_insufficient_data_empty():
 
 
 def test_k_anonymity_floor_is_five():
-    # This is a privacy guarantee, not a tunable knob — regression-guard it.
     assert MIN_SAMPLE_SIZE == 5

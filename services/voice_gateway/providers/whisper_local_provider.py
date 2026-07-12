@@ -14,8 +14,6 @@ def _get_model() -> WhisperModel:
     global _model
     if _model is None:
         s = get_settings()
-        # whisper_model_path defaults to "small" — a public model name faster-whisper
-        # downloads automatically, so this fallback tier works with zero extra setup.
         _model = WhisperModel(s.whisper_model_path, device=s.whisper_device, compute_type=s.whisper_compute_type)
     return _model
 

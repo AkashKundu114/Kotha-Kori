@@ -46,7 +46,6 @@ def test_counter_offer_later_turn_splits_gap_but_never_below_floor():
 
 
 def test_counter_offer_never_below_floor_even_with_high_offer_near_floor():
-    # offer already close to floor — split should still clamp at/above floor
     result = _compute_counter_offer(floor=200, offer=199, turns=3)
     assert result >= 200.0
 

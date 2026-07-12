@@ -26,17 +26,10 @@ NO_PROFILE_MSG = (
 
 
 def _recommend(cost: float, margin: float, min_price: float | None, market_avg: float | None) -> dict:
-    """Deterministic — never LLM-generated. cost/margin/min_price come from
-    the seller's own stated numbers; market_avg is an optional anchor, never
-    a substitute for the seller's own floor. Mirrors the pattern in
-    market_service/aggregator.py::classify_trend — numbers first, LLM only
-    for phrasing the result afterward."""
     base = cost * (1 + margin)
-    floor = max(base, min_price or 0, cost)  # never recommend below cost, ever
+    floor = max(base, min_price or 0, cost)  
 
     if market_avg and market_avg > floor:
-        # Blend toward market, but cap the upside modestly — don't chase a
-        # market spike the seller can't reliably repeat next week.
         recommended = min(market_avg * 0.95, floor * 1.4)
         recommended = max(recommended, floor)
     else:
@@ -71,7 +64,7 @@ async def pricing_node(state: ConversationState) -> dict:
             if matches:
                 market_avg = sum(r["total_amount"] for r in matches) / len(matches)
         except Exception:
-            pass  # market signal is optional enrichment, never blocks pricing
+            pass  
 
     calc = _recommend(
         cost=float(profile.production_cost),

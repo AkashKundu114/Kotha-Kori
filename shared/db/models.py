@@ -122,9 +122,6 @@ class MarketPrice(Base):
 
 
 class SellerProfile(Base):
-    """Backs the Pricing Recommendation Agent (pricing_node.py). One row per
-    seller; production_cost + preferred_margin + minimum_price feed the
-    deterministic price-floor calculation, never an LLM-generated number."""
 
     __tablename__ = "seller_profiles"
 

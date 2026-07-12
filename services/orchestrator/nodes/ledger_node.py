@@ -14,10 +14,6 @@ from services.orchestrator.model_router import (
 
 logger = logging.getLogger("ledger_node")
 
-# Rural voice notes routinely code-mix Bengali and English ("500 taka bikri
-# hoise"). Only worth a translation call when the text actually looks mixed —
-# not on every message, to keep this near-zero cost. A cheap character-ratio
-# heuristic, not a model call.
 _LATIN_LETTER_RE = re.compile(r"[A-Za-z]")
 _BENGALI_LETTER_RE = re.compile(r"[\u0980-\u09FF]")
 _BANGLISH_LATIN_RATIO_THRESHOLD = 0.35
@@ -27,7 +23,7 @@ def _looks_code_mixed(text: str) -> bool:
     latin = len(_LATIN_LETTER_RE.findall(text))
     bengali = len(_BENGALI_LETTER_RE.findall(text))
     total_letters = latin + bengali
-    if total_letters < 6:  # too short to judge — don't bother translating
+    if total_letters < 6:  
         return False
     return (latin / total_letters) >= _BANGLISH_LATIN_RATIO_THRESHOLD
 

@@ -17,10 +17,6 @@ logger = logging.getLogger("catalog_node")
 
 MAX_IMAGE_BYTES = 5 * 1024 * 1024
 
-# Best-effort keyword bridge between the vision model's coarse category
-# (textile/food/handicraft/agriculture/other) and the freeform Bengali
-# category strings ledger entries use. Deliberately conservative — if
-# nothing matches, we say nothing rather than fabricate a market claim.
 _CATEGORY_KEYWORDS = {
     "textile": ["কাঁথা", "শাড়ি", "সেলাই", "কাপড়"],
     "food": ["পাপড়", "আচার", "মশলা", "খাবার"],
@@ -62,9 +58,6 @@ async def catalog_node(state: ConversationState) -> dict:
         }
 
     try:
-        # Vision understanding: Sarvam Vision -> local Ollama vision fallback
-        # (see model_router.route_vision_completion). Caption generation is
-        # routed through the Sarvam text cascade inside generate_captions.
         product_info = await analyze_product_image(raw_bytes)
         captions, (price_min, price_max) = await generate_captions(product_info, shg_name=_shg_name(state))
     except ModelUnavailableError:
@@ -109,11 +102,6 @@ async def catalog_node(state: ConversationState) -> dict:
 
 
 async def _build_delivery_messages(s3, s, processed_bytes, processed_key, product_info, captions, price_min, price_max, market_note, state):
-    """Tries Flux Pro first (if configured), falls back to the free local
-    Pillow composite (a single shareable poster: photo + price + caption
-    banner), and finally to the original photo + separate caption messages
-    if neither poster tier can produce output (e.g. no Flux key AND no
-    Bengali font installed — see assets/fonts/README.md)."""
     ad_caption_full = captions["ad_caption"] + (f"\n{market_note}" if market_note else "")
 
     poster_bytes, poster_tier = await generate_poster(
@@ -171,7 +159,7 @@ async def _market_note(state: ConversationState, vision_category: str) -> str | 
     try:
         rows = await block_sales_trend(block)
     except Exception:
-        return None  # optional enrichment — never block catalog delivery on this
+        return None
 
     by_category: dict[str, list[dict]] = {}
     for row in rows:
@@ -215,4 +203,4 @@ async def _record_creation(state, raw_key, processed_key, product_info, captions
             )
             await db.commit()
     except Exception:
-        pass  # the WhatsApp reply already went out; a failed audit-row write shouldn't retry the whole turn
+        pass

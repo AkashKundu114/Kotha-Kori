@@ -16,8 +16,6 @@ async def load_user_profile_node(state: ConversationState) -> dict:
                 await db.execute(select(User).where(User.whatsapp_number == whatsapp_number))
             ).scalar_one_or_none()
     except Exception:
-        # DB hiccup shouldn't crash the turn — treat as a (safe) new user and
-        # let onboarding retry; the alternative is a silent dead end.
         return {
             "is_new_user": True,
             "user_id": None,

@@ -12,9 +12,9 @@ from services.vision_service.flux_poster_client import generate_poster_image, Fl
 
 logger = logging.getLogger("poster_composer")
 
-_BANNER_HEIGHT_RATIO = 0.22  # bottom banner takes ~22% of the poster height
+_BANNER_HEIGHT_RATIO = 0.22
 _PADDING = 24
-_BANNER_BG = (26, 82, 118, 235)  # semi-opaque brand navy
+_BANNER_BG = (26, 82, 118, 235)  
 _TEXT_COLOR = (255, 255, 255)
 _PRICE_COLOR = (247, 202, 24)
 
@@ -39,13 +39,6 @@ def compose_poster(
     price_max: float,
     shg_name: str = "",
 ) -> bytes | None:
-    """Free, local, Pillow-based poster composite — the permanent fallback
-    tier regardless of Flux Pro's availability. Composites a bottom banner
-    (product name, price, short ad caption, SHG watermark) onto the
-    already-background-removed product photo. Returns None (never raises)
-    if the Bengali font asset isn't available — caller falls back to
-    sending the plain photo with captions as separate messages, so a
-    missing font is a UX downgrade, never a crash."""
     title_font = _load_font(42)
     body_font = _load_font(28)
     price_font = _load_font(36)
@@ -99,21 +92,6 @@ async def generate_poster(
     price_max: float,
     shg_name: str = "",
 ) -> tuple[bytes | None, str]:
-    """Two-tier poster generation, called by catalog_node.py:
-
-      1. Flux Pro (optional, paid) — richer AI-generated poster. Only
-         attempted if FLUX_API_KEY is set. See flux_poster_client.py for
-         the open verification item on its request/response shape.
-      2. Local Pillow composite (compose_poster, above) — free, always
-         available, the permanent fallback regardless of Flux's status or
-         configuration.
-
-    Returns (image_bytes | None, tier_used). tier_used is "flux-pro" or
-    "pillow" so catalog_node can log/trace which tier actually produced the
-    delivered poster. None means both tiers failed (e.g. missing Bengali
-    font AND Flux unavailable/unconfigured) — caller falls back further to
-    plain photo + separate caption messages, same as before this change.
-    """
     s = get_settings()
 
     if s.flux_api_key:

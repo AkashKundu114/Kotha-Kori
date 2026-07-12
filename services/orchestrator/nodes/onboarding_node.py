@@ -9,7 +9,7 @@ WELCOME = (
     "শুরু করতে আপনার নাম বলুন।"
 )
 
-_MAX_FIELD_LEN = 100  # a name/block reply this long is almost certainly noise
+_MAX_FIELD_LEN = 100  
 
 
 async def onboarding_node(state: ConversationState) -> dict:

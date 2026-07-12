@@ -18,7 +18,7 @@ from shared.whatsapp.media import (
 logger = logging.getLogger("gateway")
 
 app = FastAPI(title="Kotha-Khata Gateway", version="1.0.0")
-app.add_middleware(CORSMiddleware, allow_origins=["*"])  # only client is Meta's webhook
+app.add_middleware(CORSMiddleware, allow_origins=["*"])
 
 _redis: aioredis.Redis | None = None
 DEDUP_TTL_SECONDS = 86400
@@ -51,9 +51,6 @@ async def verify_webhook(request: Request):
 
 @app.post("/webhook/whatsapp")
 async def receive_message(request: Request, background_tasks: BackgroundTasks):
-    """Never raises. A malformed/hostile payload always gets a 200 'ok' so Meta
-    doesn't hammer us with retries — errors are logged and swallowed here,
-    not surfaced as 5xx to the webhook caller."""
     try:
         s = get_settings()
         body = await request.body()
@@ -80,13 +77,13 @@ async def receive_message(request: Request, background_tasks: BackgroundTasks):
             f"dedup:{msg.message_id}", "1", ex=DEDUP_TTL_SECONDS, nx=True
         )
         if not was_new:
-            return {"status": "ok"}  # Meta retry of an already-processed message
+            return {"status": "ok"} 
 
         rate_key = f"ratelimit:{msg.from_number}:{int(time.time() // 3600)}"
         count = await redis.incr(rate_key)
         await redis.expire(rate_key, 3600)
         if count > s.max_messages_per_hour:
-            return {"status": "ok"}  # soft-block, no reply — avoids a rate-limit reply loop
+            return {"status": "ok"} 
 
         background_tasks.add_task(_dispatch_to_orchestrator, msg)
         return {"status": "ok"}

@@ -19,11 +19,6 @@ CONVERSATION_SYSTEM = (
 
 
 async def general_conversation_node(state: ConversationState) -> dict:
-    """Off-topic / unclear-intent messages get a real, warm, cheap (Sarvam-
-    routed) reply instead of a static canned redirect — while staying
-    strictly scoped to safe, on-brand small talk. Only fires once intent
-    classification has already failed to find a real feature, so it doesn't
-    add cost to normal on-path usage."""
     text = (state.get("raw_input_text") or state.get("raw_input_transcript") or "").strip()
     if not text:
         return {

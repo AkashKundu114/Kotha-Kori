@@ -1,7 +1,3 @@
--- Kotha-Khata — base schema for Features 1 (Voice-Ledger), 3 (Catalog Creator),
--- 8 (Market Predictor). Applied automatically on first Postgres container start
--- via docker-entrypoint-initdb.d — no Alembic step required for a fresh deploy.
-
 CREATE EXTENSION IF NOT EXISTS pgcrypto;  -- gen_random_uuid()
 
 CREATE TABLE IF NOT EXISTS shg_groups (

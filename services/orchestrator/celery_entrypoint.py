@@ -21,9 +21,6 @@ def process_turn(whatsapp_number: str, turn_input: dict):
 
 
 async def _process_turn_async(whatsapp_number: str, turn_input: dict):
-    """Any exception anywhere in the graph — a bad LLM response, a DB hiccup,
-    a bug in a node — degrades to a friendly Bengali message instead of
-    leaving the user in silence or crashing the worker."""
     try:
         graph = await get_compiled_graph()
         config = {"configurable": {"thread_id": whatsapp_number}}
@@ -48,4 +45,3 @@ async def _process_turn_async(whatsapp_number: str, turn_input: dict):
                 await send_image(whatsapp_number, msg["url"], msg.get("caption", ""))
         except Exception:
             logger.exception("failed to deliver one outbound message to %s", whatsapp_number)
-            # keep going — don't let one failed send block the rest of the turn's messages

@@ -2,8 +2,6 @@ import hmac, hashlib
 
 
 def test_hmac_signature_matches_expected_scheme():
-    """Guards the exact signing scheme services/gateway/main.py expects from
-    Meta: sha256=<hex hmac of the raw body, keyed by the App Secret>."""
     secret = "test-app-secret"
     body = b'{"entry": []}'
     expected = "sha256=" + hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()

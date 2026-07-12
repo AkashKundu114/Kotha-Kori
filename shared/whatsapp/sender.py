@@ -11,9 +11,6 @@ _TIMEOUT = 15.0
 
 
 async def _post(payload: dict) -> dict:
-    """All sends go through here so failures are logged once, in one place,
-    and never raise into a caller that might crash a Celery task over a
-    transient WhatsApp API hiccup."""
     s = get_settings()
     try:
         async with httpx.AsyncClient(timeout=_TIMEOUT) as client:

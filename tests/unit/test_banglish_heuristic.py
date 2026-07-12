@@ -17,7 +17,6 @@ def test_banglish_code_mixed_is_flagged():
 
 
 def test_too_short_text_not_flagged():
-    # Not enough letters to judge reliably — avoid a wasted translation call.
     assert _looks_code_mixed("ok") is False
 
 

@@ -11,8 +11,7 @@ AFFIRMATIVE = {"হ্যাঁ", "হ্যা", "ha", "haan", "thik", "ঠি�
 NEGATIVE = {"না", "no", "na", "bhul", "ভুল", "ঠিক নয়"}
 
 MAX_CONFIRMATION_TURNS = 3
-MAX_REASONABLE_AMOUNT = 500_000  # ₹5 lakh per single voice-note transaction — anything
-                                  # above this is almost certainly a mis-extraction
+MAX_REASONABLE_AMOUNT = 500_000 
 
 CORRECTION_SYSTEM = (
     "তুমি বাংলা আর্থিক তথ্য নিষ্কাশনকারী। ব্যবহারকারী একটি পূর্বের\n"
@@ -25,7 +24,6 @@ CORRECTION_SYSTEM = (
 
 
 def _validate_amount(amt: float) -> float | None:
-    """Reject NaN/inf and out-of-range amounts before they ever reach the DB."""
     if amt != amt or amt in (float("inf"), float("-inf")):
         return None
     if amt < 0 or amt > MAX_REASONABLE_AMOUNT:

@@ -41,8 +41,6 @@ async def market_predictor_node(state: ConversationState) -> dict:
     try:
         phrased = await _phrase_report(report)
     except ModelUnavailableError:
-        # Deterministic fallback — don't leave the user with nothing just because
-        # the phrasing model is briefly down; the underlying trend data is still valid.
         phrased = _plain_fallback(report)
 
     return {
@@ -80,7 +78,7 @@ async def _build_report(block: str) -> dict:
     try:
         mandi_prices = await fetch_mandi_prices(district=block)
     except Exception:
-        mandi_prices = []  # optional external signal — never block the response on it
+        mandi_prices = []
 
     return {"block": block, "rising": rising, "saturated": saturated, "mandi_prices": mandi_prices}
 
