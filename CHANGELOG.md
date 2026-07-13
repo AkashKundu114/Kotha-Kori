@@ -48,10 +48,88 @@ git diff                 # review before committing
 - `services/orchestrator/nodes/catalog_node.py` — updated to call `generate_poster()` instead of calling `compose_poster()` directly; traces/S3-keys now record which tier (`flux-pro` / `pillow` / `none`) actually produced the delivered poster.
 - Covered by `tests/unit/test_flux_poster_fallback.py`.
 
+### 6. Red-team pass #3 and fixes (see `docs/red-team-agents-v2.md` for full detail)
+Every finding below was reproduced against the actual code with a runnable
+PoC before being fixed, and re-verified against the fix afterward —
+including a real `pytest` run (26/26 passing) and a second bypass round that
+caught a gap in my own first fix (spelled-out number words) before shipping.
+
+- **CRIT-1 (fixed):** the negotiation agent's original "safety net" —
+  scanning LLM output for `₹`/`টাকা` patterns — was a bypassable blocklist.
+  Proven to miss bare digits, the Bengali Taka sign (৳), romanized "taka",
+  and spelled-out number words. **Redesigned structurally**: the LLM
+  (`negotiation_node.py`) is no longer asked to write a price at all, only
+  an optional digit-and-number-word-free justification sentence
+  (`_mentions_a_number`); the actual quoted amount is always interpolated
+  by code from an already-floor-safe, deterministically computed value.
+- **HIGH-1 (fixed):** a WhatsApp message containing a ~400-digit number
+  parsed to `float('inf')` via `_extract_amount`, which unconditionally
+  satisfied `offer >= floor` for any floor. `_extract_amount` now rejects
+  non-finite values and anything above `MAX_REASONABLE_OFFER` (₹5,00,000,
+  matching `ledger_confirm_node`'s existing pattern).
+- **MED-1 (fixed):** `pricing_node._recommend` had no bounds on
+  `cost`/`margin`/`min_price` — a negative or zero `production_cost` with
+  no `minimum_price` set collapsed the floor to ₹0, which `negotiation_node`
+  would then treat as "accept anything." Not reachable via chat today (no
+  orchestrator node writes `seller_profiles` yet), but fixed now since a
+  future price-setting flow will make it directly reachable. Inputs are now
+  clamped non-negative, and every caller explicitly refuses to proceed when
+  `floor_price <= 0`.
+- **MED-2 (fixed):** `flux_poster_client.py` downloaded its result image
+  with no size cap and no scheme check — same vulnerability class as your
+  own `red-team.md` CRIT-2 (PDF SSRF), just against a vendor API response
+  instead of raw user input. Now a size-capped streaming download,
+  https-only.
+- **LOW-1 (fixed):** the Flux Pro prompt embedded unsanitized,
+  unbounded-length AI-generated text (itself derived from a user-submitted
+  photo via the vision model). Now truncated and control-character-stripped
+  before use, mirroring `pdf_service`'s existing `_clean()` pattern.
+- **LOW-2 (fixed):** no overall wall-clock budget on Flux polling — a
+  slow-but-not-failing endpoint could tie up a Celery worker slot for
+  minutes. Now wrapped in a hard 60s outer `asyncio.wait_for` ceiling.
+
+### 7. Local Bengali calendar + local product taxonomy
+- `shared/i18n/bengali_calendar.py` — **new file**. Centralizes the
+  Gregorian-months-in-Bengali-script dict that was previously duplicated
+  identically in `pdf_service/generator.py` and `ledger_report_node.py`
+  (`GREGORIAN_MONTHS_BENGALI`, kept as the authoritative date everywhere —
+  bank/government paperwork stays Gregorian). Adds a real Bangla calendar
+  (Bangabda) conversion, `gregorian_to_bangla_approx`, shown as a clearly
+  labeled secondary "(আনুমানিক)" / "approximate" reference in the PDF
+  report and WhatsApp report caption — not a replacement for the Gregorian
+  date. Verified structurally valid across a 4-year span including a leap
+  year (`tests/unit/test_bengali_calendar.py`, 7 tests); the exact
+  day-boundary precision is explicitly flagged as unverified against a
+  specific West Bengal panjika (see the module's own verification note,
+  same pattern as the Sarvam Vision / Flux Pro flags).
+- `shared/catalog/local_products.py` — **new file**. A real West Bengal SHG
+  product taxonomy (papad, pickle, Kantha embroidery, poultry, vegetables,
+  jute handicraft, terracotta, mushroom, honey, mustard oil, muri, batik,
+  tailoring, candle/soap) drawn directly from the personas and trade list
+  already in `docs/product.md` and `docs/archive/engineering/llm-guide.md`
+  — not an invented generic catalog. Covered by
+  `tests/unit/test_local_products.py` (13 tests: data integrity + both
+  matching helpers).
+- `services/vision_service/vision_router.py` — price-range suggestions now
+  try a specific local-product match first (e.g. "kantha saree" -> ₹500–
+  ₹2000) before falling back to the old 5-bucket broad category range,
+  both now sourced from the new shared module instead of a hardcoded dict
+  duplicated in this file.
+- `services/orchestrator/nodes/catalog_node.py` — `_CATEGORY_KEYWORDS` (used
+  for the market-trend note) is now generated from the local product list
+  instead of a separately hand-maintained dict that only covered 4
+  categories with 2–4 keywords each. Poster titles now use the localized
+  Bengali product name (`_product_label_bengali`) when a local match is
+  found, instead of always falling back to the raw English vision output
+  or a generic "পণ্য".
+
 ## Still open / needs your decision
 
 1. **Verify Sarvam Vision's actual scope** (product photos vs. document/OCR-only) against current Sarvam docs before trusting it as the catalog-vision primary — see the flag in `model_router.py`, `sarvam_client.py`, and `architecture.md` §8.
-2. **Verify Flux Pro's endpoint/payload shape** against your account's current docs — `flux_poster_client.py`'s request/response format is a best-effort implementation, not confirmed live. Any mismatch degrades safely to the Pillow tier, it doesn't break the flow.
+2. **Verify Flux Pro's endpoint/payload shape** against your account's current docs — `flux_poster_client.py`'s request/response format is a best-effort implementation, not confirmed live. Any mismatch degrades safely to the Pillow tier.
 3. **Enable `USE_LOCAL_MODELS=true`** before real pilot traffic — it's no longer optional in practice now that OpenAI isn't there as a backstop.
 4. **`migrations/0002_hybrid_search.sql`** (Scheme RAG) is still undeployable — the table it alters is never created. Not touched by this update; see `DELETE_LIST.md` section C.
-5. **Negotiation agent's offer extraction** is a single-amount regex (same limitation as `grounding_verifier.py`'s assertion extraction) — a message with multiple numbers only picks up the first one. Fine for single-item bargaining; revisit if multi-item negotiation becomes common.
+5. **Negotiation agent's offer extraction** is a single-amount regex — a message with multiple numbers only picks up the first one. Fine for single-item bargaining; revisit if multi-item negotiation becomes common.
+6. **When you eventually build a chat-driven flow that writes to `seller_profiles`** (e.g. "set my price" via voice, matching the ledger pattern), reuse `ledger_confirm_node._validate_amount`'s validation approach for `production_cost`/`minimum_price` — the MED-1 fix in `_recommend` is defense-in-depth, not a substitute for validating at the point of entry too.
+7. **The Bangla calendar conversion's exact day-boundary precision is unverified** against a specific West Bengal panjika — see `shared/i18n/bengali_calendar.py`'s own note. It's used only as a secondary, clearly-labeled "approximate" display; nothing legal/financial depends on it. If a pilot user flags the displayed Bangla month as wrong for their local panjika, that's expected variance, not a bug to chase precisely.
+8. **`shared/catalog/local_products.py` is a starting list (14 products), not exhaustive** — extend it as real pilot users report products it doesn't recognize; the matching helpers (`find_local_product_by_slug`/`_by_bengali_text`) already fail safe (return `None`, fall back to broad category ranges) for anything not yet in the list.

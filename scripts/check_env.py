@@ -1,3 +1,5 @@
+"""Fails loudly, in plain English, if a required .env value is missing —
+so setup breaks at 'make setup' instead of at 3am inside a Celery worker."""
 import os
 import sys
 from pathlib import Path

@@ -26,10 +26,29 @@ NO_PROFILE_MSG = (
 
 
 def _recommend(cost: float, margin: float, min_price: float | None, market_avg: float | None) -> dict:
+    """Deterministic — never LLM-generated. cost/margin/min_price come from
+    the seller's own stated numbers; market_avg is an optional anchor, never
+    a substitute for the seller's own floor. Mirrors the pattern in
+    market_service/aggregator.py::classify_trend — numbers first, LLM only
+    for phrasing the result afterward.
+
+    Inputs are clamped to non-negative before use (red-team-agents-v2.md
+    MED-1): a negative or missing production_cost with no minimum_price set
+    would otherwise collapse the floor to <= 0, which negotiation_node would
+    then treat as "accept any non-negative offer." Every caller of this
+    function must additionally check `floor_price > 0` before proceeding —
+    this function itself only guarantees non-negativity, not "usable."
+    """
+    cost = max(0.0, float(cost or 0))
+    margin = max(0.0, float(margin or 0))  # a negative margin isn't a valid floor input
+    min_price = max(0.0, float(min_price)) if min_price else None
+
     base = cost * (1 + margin)
-    floor = max(base, min_price or 0, cost)  
+    floor = max(base, min_price or 0, cost)  # never recommend below cost, ever
 
     if market_avg and market_avg > floor:
+        # Blend toward market, but cap the upside modestly — don't chase a
+        # market spike the seller can't reliably repeat next week.
         recommended = min(market_avg * 0.95, floor * 1.4)
         recommended = max(recommended, floor)
     else:
@@ -64,7 +83,7 @@ async def pricing_node(state: ConversationState) -> dict:
             if matches:
                 market_avg = sum(r["total_amount"] for r in matches) / len(matches)
         except Exception:
-            pass  
+            pass  # market signal is optional enrichment, never blocks pricing
 
     calc = _recommend(
         cost=float(profile.production_cost),
@@ -72,6 +91,12 @@ async def pricing_node(state: ConversationState) -> dict:
         min_price=float(profile.minimum_price) if profile.minimum_price else None,
         market_avg=market_avg,
     )
+
+    if calc["floor_price"] <= 0:
+        # Bad/negative production_cost data with no minimum_price fallback —
+        # refuse rather than silently proceed with a ₹0 floor. See
+        # docs/red-team-agents-v2.md MED-1.
+        return {"outbound_messages": [{"type": "text", "body": NO_PROFILE_MSG}], "trace": ["pricing_node:non_positive_floor"]}
 
     prompt = (
         f"তৈরির খরচ: ₹{profile.production_cost}\n"

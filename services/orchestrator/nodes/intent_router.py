@@ -44,6 +44,8 @@ async def classify_intent(state: ConversationState) -> dict:
             system=INTENT_CLASSIFY_SYSTEM, prompt=text, criticality=TaskCriticality.ROUTINE
         )
     except ModelUnavailableError:
+        # Keyword matching already failed above; without the model we can't
+        # classify — fall back to the unhandled-feature menu rather than crash.
         return {"active_feature": "IDLE", "trace": ["intent_router:model_unavailable"]}
 
     try:

@@ -4,6 +4,7 @@ import json
 import re
 
 from services.orchestrator.model_router import route_vision_completion, route_completion, TaskCriticality
+from shared.catalog.local_products import CATEGORY_PRICE_RANGES, find_local_product_by_slug
 
 VISION_PROMPT = (
     "এই ছবিতে কী পণ্য দেখছ? শুধুমাত্র এই JSON ফরম্যাটে ফেরত দাও:\n"
@@ -25,14 +26,6 @@ CAPTION_SYSTEM = (
     "নিয়ম: অতিরিক্ত প্রতিশ্রুতি বা মিথ্যা দাবি করো না — শুধু যা ছবিতে দেখা যাচ্ছে তার ভিত্তিতে লেখো।"
 )
 
-_PRICE_RANGES = {
-    "textile": (500, 1500),
-    "food": (50, 400),
-    "handicraft": (150, 800),
-    "agriculture": (30, 300),
-    "other": (100, 600),
-}
-
 _FALLBACK_WHATSAPP_CAPTION = "✨ নতুন পণ্য এসেছে! বিস্তারিত জানতে যোগাযোগ করুন।"
 _FALLBACK_AD_CAPTION = "নতুন পণ্য এখন উপলব্ধ — আজই অর্ডার করুন!"
 
@@ -51,9 +44,23 @@ async def analyze_product_image(image_bytes: bytes) -> dict:
     return parsed
 
 
-async def generate_captions(product_info: dict, shg_name: str = "") -> tuple[dict, tuple[float, float]]:
+def _price_range_for(product_info: dict) -> tuple[float, float]:
+    """Tries a specific local-product match first (shared/catalog/local_products.py
+    — e.g. 'kantha saree' -> ₹500-₹2000, tighter than the broad textile
+    bucket), falling back to the 5-bucket category default if nothing in
+    the local catalog matches. Never fabricates a range outside either
+    source — always one or the other."""
+    product_type = product_info.get("product_type", "")
+    local_match = find_local_product_by_slug(product_type)
+    if local_match:
+        return local_match["price_min"], local_match["price_max"]
+
     category = product_info.get("category", "other")
-    price_min, price_max = _PRICE_RANGES.get(category, _PRICE_RANGES["other"])
+    return CATEGORY_PRICE_RANGES.get(category, CATEGORY_PRICE_RANGES["other"])
+
+
+async def generate_captions(product_info: dict, shg_name: str = "") -> tuple[dict, tuple[float, float]]:
+    price_min, price_max = _price_range_for(product_info)
 
     prompt = (
         f"পণ্যের তথ্য: {json.dumps(product_info, ensure_ascii=False)}\n"

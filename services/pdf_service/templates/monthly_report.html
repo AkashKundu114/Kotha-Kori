@@ -8,6 +8,7 @@
     .header { background:linear-gradient(135deg,#1a5276,#2e86c1); color:white; padding:24px; text-align:center; }
     .header h1 { font-size:20px; font-weight:700; }
     .header p { font-size:13px; opacity:0.9; margin-top:4px; }
+    .header .bangla-calendar { font-size:11px; opacity:0.75; margin-top:2px; font-style:italic; }
     .summary { display:flex; gap:12px; padding:16px; background:#f8f9fa; }
     .summary-card { flex:1; background:white; border-radius:8px; padding:12px; text-align:center; border:1px solid #e0e0e0; }
     .summary-card .label { font-size:11px; color:#666; }
@@ -28,6 +29,7 @@
     <h1>কোথা-খাতা | মাসিক আয়-ব্যয় বিবরণী</h1>
     <p>{{ member_name }} | {{ shg_name }} | {{ district }} জেলা</p>
     <p>{{ month_bengali }} {{ year }} | তৈরি: {{ generated_date }}</p>
+    {% if bangla_calendar_label %}<p class="bangla-calendar">বাংলা পঞ্জিকা: {{ bangla_calendar_label }}</p>{% endif %}
   </div>
   <div class="summary">
     <div class="summary-card"><div class="label">মোট আয়</div><div class="value income">₹{{ "{:,.0f}".format(total_income) }}</div></div>
@@ -47,6 +49,7 @@
     <strong>গুরুত্বপূর্ণ:</strong> এই নথিটি {{ member_name }}-এর ব্যক্তিগত লেনদেনের রেকর্ডের ভিত্তিতে তৈরি।
     ব্যাংক ঋণ বা পঞ্চায়েত সভায় সহায়ক নথি হিসেবে ব্যবহার করা যেতে পারে।
     কোথা-খাতা কোনো আর্থিক পরামর্শ বা নিশ্চয়তা প্রদান করে না। ঋণ নেওয়ার আগে ব্যাংক বা NGO-র সাথে কথা বলুন।
+    তারিখ ও মাস সর্বদা গ্রেগরিয়ান ক্যালেন্ডার অনুযায়ী (বাংলা পঞ্জিকার তারিখ আনুমানিক, শুধু তথ্যের জন্য)।
   </div>
   <div class="footer">kotha-khata.in | পশ্চিমবঙ্গ স্বনির্ভর গোষ্ঠী সহায়তা প্রকল্প</div>
 </body>

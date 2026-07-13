@@ -12,17 +12,20 @@ from services.vision_service.vision_router import analyze_product_image, generat
 from services.vision_service.poster_composer import generate_poster
 from services.orchestrator.model_router import ModelUnavailableError
 from services.market_service.aggregator import block_sales_trend, classify_trend
+from shared.catalog.local_products import category_keywords, find_local_product_by_slug
 
 logger = logging.getLogger("catalog_node")
 
 MAX_IMAGE_BYTES = 5 * 1024 * 1024
 
-_CATEGORY_KEYWORDS = {
-    "textile": ["কাঁথা", "শাড়ি", "সেলাই", "কাপড়"],
-    "food": ["পাপড়", "আচার", "মশলা", "খাবার"],
-    "handicraft": ["হস্তশিল্প", "কারুকাজ"],
-    "agriculture": ["সবজি", "ফসল", "চাষ"],
-}
+# Bridge between the vision model's coarse category (textile/food/
+# handicraft/agriculture/other) and the freeform Bengali category strings
+# ledger entries use, for the market-trend note in _market_note() below.
+# Generated from shared/catalog/local_products.py — the single source of
+# truth for this codebase's product taxonomy — instead of a separately
+# hand-maintained dict that used to cover only 4 categories with 2-4
+# keywords each.
+_CATEGORY_KEYWORDS = category_keywords()
 
 
 async def catalog_node(state: ConversationState) -> dict:
@@ -58,6 +61,9 @@ async def catalog_node(state: ConversationState) -> dict:
         }
 
     try:
+        # Vision understanding: Sarvam Vision -> local Ollama vision fallback
+        # (see model_router.route_vision_completion). Caption generation is
+        # routed through the Sarvam text cascade inside generate_captions.
         product_info = await analyze_product_image(raw_bytes)
         captions, (price_min, price_max) = await generate_captions(product_info, shg_name=_shg_name(state))
     except ModelUnavailableError:
@@ -102,11 +108,16 @@ async def catalog_node(state: ConversationState) -> dict:
 
 
 async def _build_delivery_messages(s3, s, processed_bytes, processed_key, product_info, captions, price_min, price_max, market_note, state):
+    """Tries Flux Pro first (if configured), falls back to the free local
+    Pillow composite (a single shareable poster: photo + price + caption
+    banner), and finally to the original photo + separate caption messages
+    if neither poster tier can produce output (e.g. no Flux key AND no
+    Bengali font installed — see assets/fonts/README.md)."""
     ad_caption_full = captions["ad_caption"] + (f"\n{market_note}" if market_note else "")
 
     poster_bytes, poster_tier = await generate_poster(
         processed_bytes,
-        product_name=product_info.get("product_type", "পণ্য"),
+        product_name=_product_label_bengali(product_info),
         ad_caption=ad_caption_full,
         price_min=price_min,
         price_max=price_max,
@@ -159,7 +170,7 @@ async def _market_note(state: ConversationState, vision_category: str) -> str | 
     try:
         rows = await block_sales_trend(block)
     except Exception:
-        return None
+        return None  # optional enrichment — never block catalog delivery on this
 
     by_category: dict[str, list[dict]] = {}
     for row in rows:
@@ -177,6 +188,18 @@ async def _market_note(state: ConversationState, vision_category: str) -> str | 
 def _shg_name(state: ConversationState) -> str:
     profile = state.get("user_profile") or {}
     return profile.get("shg_name", "")
+
+
+def _product_label_bengali(product_info: dict) -> str:
+    """Prefers the local product taxonomy's Bengali name (e.g. 'কাঁথা /
+    কাঁথা স্টিচ শাড়ি' for a vision match on 'kantha saree') over the raw
+    English product_type the vision model returned, for anything shown to
+    the user (poster title, etc.). Falls back to a generic 'পণ্য' only if
+    neither the local catalog nor the vision model gave us anything."""
+    local_match = find_local_product_by_slug(product_info.get("product_type", ""))
+    if local_match:
+        return local_match["name_bengali"]
+    return product_info.get("product_type") or "পণ্য"
 
 
 async def _record_creation(state, raw_key, processed_key, product_info, captions, price_min, price_max) -> None:
@@ -203,4 +226,4 @@ async def _record_creation(state, raw_key, processed_key, product_info, captions
             )
             await db.commit()
     except Exception:
-        pass
+        pass  # the WhatsApp reply already went out; a failed audit-row write shouldn't retry the whole turn

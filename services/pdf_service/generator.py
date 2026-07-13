@@ -12,20 +12,27 @@ from shared.config.settings import get_settings
 from shared.storage.s3_client import get_s3_client
 from shared.db.models import LedgerEntry, SHGGroup, User
 from shared.db.session import get_db_session
+from shared.i18n.bengali_calendar import GREGORIAN_MONTHS_BENGALI, format_bangla_calendar_label
 
 _TEMPLATE_DIR = "services/pdf_service/templates"
 
+# autoescape=True is load-bearing: every field rendered here can originate
+# from user voice input via LLM extraction. Combined with base_url=None below
+# (no remote fetch), this closes an SSRF/injection path in the PDF renderer.
 _env = Environment(loader=FileSystemLoader(_TEMPLATE_DIR), autoescape=True)
 
 _TAG_RE = re.compile(r"<[^>]*>")
 
-BENGALI_MONTHS = {
-    1: "জানুয়ারি", 2: "ফেব্রুয়ারি", 3: "মার্চ", 4: "এপ্রিল", 5: "মে", 6: "জুন",
-    7: "জুলাই", 8: "আগস্ট", 9: "সেপ্টেম্বর", 10: "অক্টোবর", 11: "নভেম্বর", 12: "ডিসেম্বর",
-}
+# NOTE: this dict now lives in shared/i18n/bengali_calendar.py as
+# GREGORIAN_MONTHS_BENGALI — kept as a local alias only so any other code
+# still importing BENGALI_MONTHS from this module doesn't break.
+BENGALI_MONTHS = GREGORIAN_MONTHS_BENGALI
 
 
 def _clean(value: str | None, max_len: int = 120) -> str:
+    """Strip tags outright rather than relying on escaping alone — defense in
+    depth for a renderer (WeasyPrint) that would otherwise have outbound
+    network access if a tag with a remote src slipped through."""
     if not value:
         return ""
     return _TAG_RE.sub("", value).strip()[:max_len]
@@ -73,13 +80,21 @@ async def generate_monthly_report(user_id: str, year: int, month: int) -> dict:
     total_income = sum(income_by_category.values())
     total_expense = sum(expense_by_category.values())
 
+    # Bangla calendar label uses the last day of the reporting month as its
+    # reference point — a secondary, clearly-marked "traditional/approximate"
+    # display alongside the authoritative Gregorian month/year below. See
+    # shared/i18n/bengali_calendar.py for the precision caveat.
+    last_day_of_period = date.fromordinal(period_end.toordinal() - 1)
+    bangla_calendar_label = format_bangla_calendar_label(last_day_of_period)
+
     template = _env.get_template("monthly_report.html")
     html_content = template.render(
         member_name=_clean(user.name) or "সদস্য",
         shg_name=_clean(shg.name) if shg else "",
         district=_clean(user.district),
-        month_bengali=BENGALI_MONTHS[month],
+        month_bengali=GREGORIAN_MONTHS_BENGALI[month],
         year=year,
+        bangla_calendar_label=bangla_calendar_label,
         income_by_category=income_by_category,
         expense_by_category=expense_by_category,
         total_income=total_income,
