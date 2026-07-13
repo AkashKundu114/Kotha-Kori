@@ -10,9 +10,7 @@ _TIMEOUT = 20.0
 
 
 class SarvamUnavailableError(Exception):
-    """Raised on any Sarvam failure (missing key, HTTP error, timeout).
-    Callers treat this exactly like ModelUnavailableError — fall through to
-    the next cascade tier, never crash."""
+    pass
 
 
 def _headers(s) -> dict:
@@ -20,8 +18,6 @@ def _headers(s) -> dict:
 
 
 async def translate(text: str, target_lang: str, source_lang: str = "auto") -> str:
-    """Sarvam's /translate endpoint — a dedicated MT model, cheaper and more
-    accurate for this specific job than asking a chat model to translate."""
     s = get_settings()
     if not s.sarvam_api_key:
         raise SarvamUnavailableError("SARVAM_API_KEY not configured")
@@ -45,11 +41,6 @@ async def translate(text: str, target_lang: str, source_lang: str = "auto") -> s
 
 
 async def chat_completion(system: str, prompt: str, model: str | None = None, max_tokens: int = 700) -> str:
-    """OpenAI-compatible chat shape, but Sarvam's own /chat/completions
-    endpoint. `model` lets callers pick sarvam-30b (standard) or
-    sarvam-105b (advanced, for ads/negotiation) — defaults to the standard
-    chat model if not specified. This is the primary tier for every
-    structured-extraction / captioning / phrasing task in model_router.py."""
     s = get_settings()
     if not s.sarvam_api_key:
         raise SarvamUnavailableError("SARVAM_API_KEY not configured")
@@ -76,13 +67,6 @@ async def chat_completion(system: str, prompt: str, model: str | None = None, ma
 
 
 async def vision_completion(prompt: str, image_bytes: bytes, max_tokens: int = 600) -> str:
-    """Sarvam Vision — used by catalog_node/vision_router for product photo
-    identification. OPEN VERIFICATION ITEM: confirm against current Sarvam
-    API docs that this endpoint (and model) actually handles freeform
-    product photos rather than being scoped to documents/OCR/receipts —
-    the endpoint path and payload shape below are a best-effort guess at
-    Sarvam's conventions and should be checked against live docs before
-    relying on this as a production primary tier."""
     s = get_settings()
     if not s.sarvam_api_key:
         raise SarvamUnavailableError("SARVAM_API_KEY not configured")
@@ -107,17 +91,11 @@ async def vision_completion(prompt: str, image_bytes: bytes, max_tokens: int = 6
 
 
 async def chat_completion_self_hosted(system: str, prompt: str, max_tokens: int = 700) -> str:
-    """Your own Q4-quantized sarvam-translate (or similar) box, served
-    OpenAI-compatible (e.g. `vllm serve sarvamai/sarvam-translate`). This is
-    a protocol choice (vLLM speaks the OpenAI wire format), not a use of
-    OpenAI's own service — no OpenAI API key or account involved. Zero
-    marginal cost once running; genuinely optional, off unless
-    SARVAM_LOCAL_BASE_URL is set."""
     s = get_settings()
     if not s.sarvam_local_base_url:
         raise SarvamUnavailableError("SARVAM_LOCAL_BASE_URL not configured")
 
-    from openai import AsyncOpenAI  # vLLM's OpenAI-compatible server — wire protocol only
+    from openai import AsyncOpenAI
 
     try:
         client = AsyncOpenAI(base_url=s.sarvam_local_base_url, api_key="not-needed", timeout=30.0, max_retries=0)

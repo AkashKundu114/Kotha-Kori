@@ -11,14 +11,11 @@ from shared.config.settings import get_settings
 
 logger = logging.getLogger("flux_poster_client")
 
-_REQUEST_TIMEOUT = 15.0          # per-HTTP-call timeout (was 30s — see LOW-2)
+_REQUEST_TIMEOUT = 15.0          
 _POLL_INTERVAL_SECONDS = 1.5
 _MAX_POLL_ATTEMPTS = 20
-_OVERALL_BUDGET_SECONDS = 60.0   # hard ceiling regardless of internal retry/poll bookkeeping
+_OVERALL_BUDGET_SECONDS = 60.0   
 
-# Same class of cap as shared/whatsapp/media.py's MAX_AUDIO_BYTES/MAX_IMAGE_BYTES
-# — see docs/red-team-agents-v2.md MED-2. A generated poster has no
-# legitimate reason to be larger than this.
 _MAX_RESULT_IMAGE_BYTES = 8 * 1024 * 1024
 
 _MAX_PROMPT_FIELD_CHARS = 200
@@ -27,20 +24,10 @@ _CONTROL_CHARS_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
 
 
 class FluxUnavailableError(Exception):
-    """Raised on any Flux Pro failure (missing key, HTTP error, timeout,
-    generation failure, oversized/invalid result, or polling exhausted).
-    Callers treat this exactly like SarvamUnavailableError /
-    ModelUnavailableError elsewhere — fall through to the free Pillow
-    fallback in poster_composer.py, never crash."""
+    pass
 
 
 def _clean_prompt_field(value: str, max_len: int = _MAX_PROMPT_FIELD_CHARS) -> str:
-    """Sanitizes AI-generated text (product_name/ad_caption, ultimately
-    derived from a vision model reading a user-submitted photo) before it's
-    embedded in the Flux Pro prompt. Same defense-in-depth idea as
-    pdf_service/generator.py's _clean() — strip tags/control characters and
-    cap length, since this text was never meant to be arbitrary instruction
-    text. See docs/red-team-agents-v2.md LOW-1."""
     if not value:
         return ""
     value = _TAG_RE.sub("", value)
@@ -49,9 +36,6 @@ def _clean_prompt_field(value: str, max_len: int = _MAX_PROMPT_FIELD_CHARS) -> s
 
 
 async def _download_result_image(client: httpx.AsyncClient, image_url: str, headers: dict) -> bytes:
-    """Streaming download with a hard size cap and an https-only check —
-    see docs/red-team-agents-v2.md MED-2. Aborts as soon as the cap is
-    exceeded rather than buffering an unbounded response into memory."""
     if not image_url.lower().startswith("https://"):
         raise FluxUnavailableError(f"refusing non-https result URL: {image_url!r}")
 
@@ -147,25 +131,6 @@ async def generate_poster_image(
     price_max: float,
     shg_name: str = "",
 ) -> bytes:
-    """Calls Flux Pro to generate a poster using the already-background-
-    removed product photo as a reference image.
-
-    OPEN VERIFICATION ITEM: the exact endpoint path, payload field names,
-    and image-reference parameter below are a best-effort implementation
-    against Flux Pro's documented async submit -> poll-by-id -> download-
-    result-URL pattern, and have NOT been verified against live, current
-    API docs. Confirm the request/response shape against your Flux Pro
-    account's docs before relying on this in production — same caveat
-    already flagged for Sarvam Vision in sarvam_client.py. If the shape is
-    wrong, this raises FluxUnavailableError like any other failure and the
-    caller falls back to the free Pillow tier — it does not silently ship
-    a broken poster.
-
-    Wrapped in an outer wall-clock ceiling (docs/red-team-agents-v2.md
-    LOW-2) independent of the internal poll/retry bookkeeping, so a
-    slow-but-not-cleanly-failing Flux endpoint can never tie up a Celery
-    worker slot beyond a fixed budget.
-    """
     try:
         return await asyncio.wait_for(
             _generate_poster_image_impl(

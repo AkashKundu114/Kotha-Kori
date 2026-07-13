@@ -16,23 +16,14 @@ from shared.i18n.bengali_calendar import GREGORIAN_MONTHS_BENGALI, format_bangla
 
 _TEMPLATE_DIR = "services/pdf_service/templates"
 
-# autoescape=True is load-bearing: every field rendered here can originate
-# from user voice input via LLM extraction. Combined with base_url=None below
-# (no remote fetch), this closes an SSRF/injection path in the PDF renderer.
 _env = Environment(loader=FileSystemLoader(_TEMPLATE_DIR), autoescape=True)
 
 _TAG_RE = re.compile(r"<[^>]*>")
 
-# NOTE: this dict now lives in shared/i18n/bengali_calendar.py as
-# GREGORIAN_MONTHS_BENGALI — kept as a local alias only so any other code
-# still importing BENGALI_MONTHS from this module doesn't break.
 BENGALI_MONTHS = GREGORIAN_MONTHS_BENGALI
 
 
 def _clean(value: str | None, max_len: int = 120) -> str:
-    """Strip tags outright rather than relying on escaping alone — defense in
-    depth for a renderer (WeasyPrint) that would otherwise have outbound
-    network access if a tag with a remote src slipped through."""
     if not value:
         return ""
     return _TAG_RE.sub("", value).strip()[:max_len]
@@ -80,10 +71,6 @@ async def generate_monthly_report(user_id: str, year: int, month: int) -> dict:
     total_income = sum(income_by_category.values())
     total_expense = sum(expense_by_category.values())
 
-    # Bangla calendar label uses the last day of the reporting month as its
-    # reference point — a secondary, clearly-marked "traditional/approximate"
-    # display alongside the authoritative Gregorian month/year below. See
-    # shared/i18n/bengali_calendar.py for the precision caveat.
     last_day_of_period = date.fromordinal(period_end.toordinal() - 1)
     bangla_calendar_label = format_bangla_calendar_label(last_day_of_period)
 
