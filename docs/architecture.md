@@ -54,6 +54,10 @@ for onboarding and eligibility intake — see
 *primary* channel for the ledger (genuinely unstructured speech) and for users who
 prefer it everywhere, but structured branches no longer round-trip through an LLM.
 
+> **Update, §10.3 below:** as of Pass 3, ledger *confirmation* (not just intake) also
+> has a Flow option — `ledger_confirm_flow.json` — extending this same v2 decision to
+> the one remaining plain-text confirm/correct loop that predates it.
+
 ## 4. LLM usage: cascaded by task criticality, Sarvam-first
 
 **v1 problem:** The roadmap's "phased migration" implied a binary switch — pay for
@@ -90,6 +94,11 @@ reciprocal rank fusion.
 > **Update (Week 1, see §7.1 below):** the v2.0 grounding check above had its own
 > gap — it concatenated all chunks before checking grounding, so a number from the
 > *wrong* scheme's chunk could still pass as "grounded." This is now fixed.
+
+> **Update, §10.4 below:** Pass 4 generalizes this exact "never trust the model to
+> state a sensitive value, verify or structurally prevent it" principle to a second
+> surface — `cross_verify.py`, an independent second-model-call check applied to
+> pricing-chat outbound messages, not just RAG answers.
 
 ## 6. Observability: none → Langfuse from day one
 
@@ -222,6 +231,14 @@ code-level enforcement points, not prompt instructions:
 Capped at `MAX_NEGOTIATION_TURNS = 4`; past that, the agent deterministically
 holds firm at the floor price and ends the negotiation.
 
+> **Update, §10.4 below:** Pass 4 wires this agent to
+> `shared/knowledge/negotiation_playbook.py` — the *choice* of negotiation
+> tactic (anchor / reciprocity / justify-value / graceful walk-away) is now
+> made deterministically from the offer-to-floor ratio and turn number,
+> with the LLM only phrasing whichever tactic was chosen. Previously the
+> LLM picked its own framing implicitly; now the strategy itself is
+> code-selected too.
+
 ### 9.2 Flux Pro poster tier — `services/vision_service/flux_poster_client.py`
 
 Real async submit -> poll -> download integration, wired into
@@ -236,3 +253,151 @@ Pro's documented pattern, not verified against live docs. Any mismatch
 raises `FluxUnavailableError` and falls through to Pillow automatically —
 it never ships a broken image silently. Verify before trusting Flux as
 reliable in production.
+
+---
+
+## 10. Addendum — Passes 1–6: shared cultural/market knowledge, dignity rules,
+## Flow-verified ledger writes, friend-style pricing, negotiation tactics, cross-verification
+
+This section, like §7 above, is appended rather than rewriting history.
+It covers six incremental passes, each documented in its own
+`CHANGELOG_v4`–`v9` file at the repo root — this section is the
+architectural summary; those files carry the turn-by-turn detail (what
+changed, what's still open, what's honestly unverified) for anyone tracing
+a specific decision.
+
+### 10.1 Shared knowledge base — one source of cultural/seasonal context, not N copies
+
+**Problem this solves:** festival timing, seasonal price patterns, and
+family-occasion demand signals are relevant to at least four agents
+(pricing, negotiation, catalog, market predictor). Without a shared source,
+each node either duplicates this knowledge (drifting out of sync, the same
+failure mode `bengali_calendar.py`'s `GREGORIAN_MONTHS_BENGALI` already had
+before it was centralized) or simply doesn't have it.
+
+**Decision:** `shared/knowledge/context.py` is the single source. Its one
+public entry point, `get_context_for_agents(month, block, district)`,
+returns statewide festivals (`FESTIVALS`), district-specific melas
+(`DISTRICT_MELAS`, Pass 6), and generic seasonal weather/price notes
+(`SEASONAL_PATTERNS`) — all as plain data, never phrased Bengali prose, so
+every calling node still routes final phrasing through `model_router.py`
+per the existing "deterministic core, LLM for language only" split.
+`shared/knowledge/life_events.py`... — actually life-cycle occasions live
+in the same `context.py` module (`LIFE_EVENTS`, `life_events_by_community`)
+rather than a separate file, since they're read by the same callers via the
+same import.
+
+**What's real vs. approximate, stated once here and per-entry in the file
+itself:** every festival/occasion/mela entry carries a `source_note` citing
+where it came from — Wikipedia articles for Hindu and Muslim Bengali
+wedding rites, a purohit reference site for pujas, named tourism/heritage
+sources for the district melas, and an explicit, weaker flag on the three
+Christian Bengali entries (one non-academic blog source plus two
+general-Christian-practice entries with no Bengal-specific citation). Dates
+are typical-month approximations, not a real per-year lunar/panchang
+calendar — `sources_todo` at the bottom of the file lists exactly what a
+live calendar API integration would need to replace this with.
+
+**What this is not:** a "100+ verified entries" catalog. As of Pass 6 it's
+~14 life-cycle occasions, 11 statewide festivals, 5 district melas. Getting
+further needs either a real scraping pipeline against a licensed
+panchang/government data source, or continued manual research passes —
+both are real follow-up work, not something to fabricate to hit a number.
+
+### 10.2 Dignity guidelines — one shared tone contract, and an explicit no on caste/rashi
+
+`shared/knowledge/dignity_guidelines.py` centralizes the tone rules now
+prepended to every Bengali-facing conversational system prompt (ledger
+confirmation phrasing, off-topic conversation, catalog captions, market
+advice, pricing explanations, negotiation reasoning, the friend-style
+pricing chat). Rule of thumb encoded there: never imply the user doesn't
+understand something, take blame for misunderstanding onto the assistant
+rather than the user, address the user as an equal-status entrepreneur
+rather than a charity recipient.
+
+The same module documents, explicitly, why **caste, gotro/gon, and rashi
+(zodiac) are not tracked anywhere in this codebase** despite being
+requested: none of the product's actual features need them, and adding
+caste specifically as a stored/personalized attribute would create a
+discrimination-enabling asset for a population that can't easily contest
+its misuse — the wrong trade for a financial-inclusion tool. This is a
+product-safety decision, not an oversight, and is recorded here so it
+doesn't get silently re-proposed later without the reasoning attached.
+
+### 10.3 WhatsApp Flow verification before permanent ledger writes
+
+**Problem this solves:** the original ledger confirmation loop
+(`ledger_confirm_node.py`) asks the user to type হ্যাঁ/না — itself a source
+of the exact typo/mishearing risk the confirmation step exists to catch in
+the first place.
+
+**Decision:** `services/gateway/whatsapp_flows/ledger_confirm_flow.json`
+adds a tap-to-confirm form (✅ ঠিক আছে / ✏️ সংশোধন করব / ❌ বাতিল করুন) as a
+second front door onto the *same* save logic.
+`services/orchestrator/nodes/ledger_confirm_flow_node.py` consumes the tap;
+`shared/whatsapp/sender.py:send_flow()` actually sends it; `graph.py`
+routes an interactive reply to the Flow-aware node specifically when its
+payload contains `confirmation_choice`, falling back to the original
+text-based node otherwise. Critically: **there is still exactly one code
+path that ever writes to `ledger_entries`** — both confirmation routes call
+the same `_save()` in `ledger_confirm_node.py`. The Flow is a second lock
+pick, not a second lock. Configuration is optional
+(`WA_LEDGER_CONFIRM_FLOW_ID`); unset, behavior is unchanged from before
+this pass.
+
+**Open verification item**, same honesty category as Sarvam Vision/Flux Pro
+above: `send_flow()`'s payload shape (a static "flow_action: navigate"
+message, no data-exchange endpoint) is a best-effort implementation of
+Meta's documented format, not verified against a live WABA send in this
+codebase's development so far.
+
+### 10.4 Friend-style pricing chat, negotiation tactics, and cross-agent verification
+
+**`services/orchestrator/nodes/price_chat_node.py`** — a SELLER-facing
+conversational pricing negotiation (distinct from `negotiation_node.py`,
+which handles a *customer's* counter-offers after a poster is already
+live), run before `catalog_node.py` composes a poster. Follows the same
+guard-rail shape as the existing Negotiation agent: the floor is the same
+`pricing_node._recommend()` floor, the LLM never states a number, and the
+node hard-stops at the floor rather than silently capping a seller's
+request below it — instead explaining why, using the seller's own
+previously-stated `production_cost`/`minimum_price`.
+
+**`shared/knowledge/negotiation_playbook.py`** — standard, publicly
+documented negotiation concepts (anchoring, BATNA, reciprocity, silence,
+bundling, value-justification, graceful walk-away) as strategy labels with
+short Bengali coaching lines, never as a source of numbers. `choose_tactic`
+deterministically picks a strategy from the turn number and offer/floor
+ratio; `negotiation_node.py` folds the chosen tactic's coaching line into
+the LLM's reason-generation *prompt* (not its system prompt) as of Pass 4.
+
+**`services/orchestrator/nodes/cross_verify.py`** — the person's request
+that "one agent's output should be verified... by another agent" applied
+concretely and boundedly: an independent second model call
+(`verify_dignity`) checks a fully-composed outbound message against the
+dignity rules, combined with a fully deterministic numeric-integrity check
+(`check_numeric_integrity`) that every ₹ figure in the draft matches a
+code-computed value the caller actually supplied. `price_chat_node.py`
+runs every LLM-touched outbound message through this before sending, and
+falls back to a deterministic, code-only line if verification fails or is
+itself unavailable — never sends an unverified draft. This is explicitly
+*not* a full N-agent debate/consensus architecture (that's a real,
+separate scope decision involving latency and cost tradeoffs); it is one
+bounded, honest second-opinion pass on the highest-stakes outbound
+messages.
+
+### 10.5 What's still open after Pass 6
+
+- Live testing against a real WABA (Flow sends, Flow receives, the whole
+  turn) has not happened in this codebase's development so far — see the
+  open-verification flags in §10.3 above and in `send_flow()`'s own
+  docstring.
+- `negotiation_node.py`'s `is_repeat_customer` signal is hardcoded to
+  `False` — there's no data source tracking customer identity across
+  negotiations, and building one is a real privacy/consent scope decision,
+  not a code change to make silently.
+- Christian Bengali life-cycle sourcing (§10.1) is genuinely weaker than
+  the Hindu/Muslim entries and should be strengthened before being treated
+  as equally reliable.
+- No live festival/panchang calendar API is wired in — `month_hint`
+  approximations only.
