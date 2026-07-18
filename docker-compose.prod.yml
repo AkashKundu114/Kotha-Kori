@@ -8,11 +8,12 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./migrations:/docker-entrypoint-initdb.d:ro
-    ports:
-      - "127.0.0.1:5432:5432"
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "kothkori"]
+      test: ["CMD-SHELL", "pg_isready -U kothkori -d kothkori"]
       interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
 
   redis:
     image: redis:7-alpine
@@ -20,29 +21,21 @@ services:
       REDIS_PASSWORD: ${REDIS_PASSWORD}
     volumes:
       - redisdata:/data
-    ports:
-      - "127.0.0.1:6379:6379"
     command: >
       sh -c "redis-server --appendonly yes --requirepass \"$$REDIS_PASSWORD\""
+    restart: unless-stopped
 
   gateway:
     build:
       context: .
       dockerfile: services/gateway/Dockerfile
     env_file: .env
-    ports:
-      - "8000:8000"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_started
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "python3", "-c", "import httpx; httpx.get('http://localhost:8000/health', timeout=3).raise_for_status()"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
 
   orchestrator-worker:
     build:
@@ -51,8 +44,10 @@ services:
     env_file: .env
     command: celery -A services.orchestrator.celery_entrypoint worker --loglevel=info --concurrency=4 -Q celery
     depends_on:
-      - redis
-      - postgres
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
     restart: unless-stopped
 
   caddy:
@@ -61,20 +56,11 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
       - gateway
-    restart: unless-stopped
-
-  ollama:
-    image: ollama/ollama:latest
-    profiles: ["local-models"]
-    ports:
-      - "127.0.0.1:11434:11434"
-    volumes:
-      - ollama_models:/root/.ollama
     restart: unless-stopped
 
 volumes:
@@ -82,4 +68,3 @@ volumes:
   redisdata:
   caddy_data:
   caddy_config:
-  ollama_models:

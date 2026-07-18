@@ -1,8 +1,14 @@
-# Kotha-Khata (কথা-খাতা)
+# AI-SATHI
 
-Voice-first WhatsApp bot for West Bengal SHG women — bookkeeping, pricing
+Voice-first WhatsApp bot for West Bengal SHG women: bookkeeping, pricing
 guidance, product catalog creation, and market intelligence, entirely in
 spoken Bengali.
+
+Production domain: `https://aisathi.app`
+
+WhatsApp webhook: `https://aisathi.app/webhook/whatsapp`
+
+DigitalOcean deployment guide: [docs/digitalocean-deploy.md](docs/digitalocean-deploy.md)
 
 Messaging runs exclusively on the **official Meta WhatsApp Cloud API** — no
 Twilio, no Baileys, no other third-party messaging provider.
@@ -42,9 +48,15 @@ for the scope-freeze rationale.
 ## Quick start
 
 ```bash
-make setup     # copies .env.example -> .env, checks it, brings up Postgres
-# now edit .env — fill in the REQUIRED section (see below)
-make dev       # docker compose up --build
+make setup
+make dev
+```
+
+For a DigitalOcean Droplet:
+
+```bash
+cp .env.example .env
+docker compose -f docker-compose.prod.yml up -d --build
 ```
 
 Postgres schema is applied automatically on first boot

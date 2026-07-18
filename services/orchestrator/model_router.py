@@ -15,14 +15,14 @@ logger = logging.getLogger("model_router")
 
 
 class TaskCriticality(str, Enum):
-    SAFETY_CRITICAL = "safety_critical"  
+    SAFETY_CRITICAL = "safety_critical"
     ROUTINE = "routine"
 
 
 class AgentTier(str, Enum):
 
-    STANDARD = "standard"  
-    ADVANCED = "advanced"  
+    STANDARD = "standard"
+    ADVANCED = "advanced"
 
 
 class ModelUnavailableError(Exception):

@@ -40,15 +40,15 @@ def _recommend(cost: float, margin: float, min_price: float | None, market_avg: 
     this function itself only guarantees non-negativity, not "usable."
     """
     cost = max(0.0, float(cost or 0))
-    margin = max(0.0, float(margin or 0))  # a negative margin isn't a valid floor input
+    margin = max(0.0, float(margin or 0))
     min_price = max(0.0, float(min_price)) if min_price else None
 
     base = cost * (1 + margin)
-    floor = max(base, min_price or 0, cost)  # never recommend below cost, ever
+    floor = max(base, min_price or 0, cost)
 
     if market_avg and market_avg > floor:
-        # Blend toward market, but cap the upside modestly — don't chase a
-        # market spike the seller can't reliably repeat next week.
+
+
         recommended = min(market_avg * 0.95, floor * 1.4)
         recommended = max(recommended, floor)
     else:
@@ -83,7 +83,7 @@ async def pricing_node(state: ConversationState) -> dict:
             if matches:
                 market_avg = sum(r["total_amount"] for r in matches) / len(matches)
         except Exception:
-            pass  # market signal is optional enrichment, never blocks pricing
+            pass
 
     calc = _recommend(
         cost=float(profile.production_cost),
@@ -93,9 +93,9 @@ async def pricing_node(state: ConversationState) -> dict:
     )
 
     if calc["floor_price"] <= 0:
-        # Bad/negative production_cost data with no minimum_price fallback —
-        # refuse rather than silently proceed with a ₹0 floor. See
-        # docs/red-team-agents-v2.md MED-1.
+
+
+
         return {"outbound_messages": [{"type": "text", "body": NO_PROFILE_MSG}], "trace": ["pricing_node:non_positive_floor"]}
 
     prompt = (

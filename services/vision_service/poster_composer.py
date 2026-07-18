@@ -14,7 +14,7 @@ logger = logging.getLogger("poster_composer")
 
 _BANNER_HEIGHT_RATIO = 0.22
 _PADDING = 24
-_BANNER_BG = (26, 82, 118, 235) 
+_BANNER_BG = (26, 82, 118, 235)
 _TEXT_COLOR = (255, 255, 255)
 _PRICE_COLOR = (247, 202, 24)
 

@@ -3,7 +3,7 @@ from datetime import date, timedelta
 from sqlalchemy import text
 from shared.db.session import get_db_session
 
-MIN_SAMPLE_SIZE = 5  
+MIN_SAMPLE_SIZE = 5
 
 async def block_sales_trend(block: str, weeks_back: int = 8) -> list[dict]:
     since = date.today() - timedelta(weeks=weeks_back)

@@ -43,7 +43,7 @@ def traced(name: str):
                             metadata={"duration_seconds": round(time.monotonic() - start, 3)},
                         )
                     except Exception:
-                        pass  
+                        pass
 
         return wrapper
 

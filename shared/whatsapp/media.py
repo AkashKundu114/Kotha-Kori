@@ -2,7 +2,7 @@ import httpx
 
 from shared.config.settings import get_settings
 
-MAX_AUDIO_BYTES = 6 * 1024 * 1024  
+MAX_AUDIO_BYTES = 6 * 1024 * 1024
 MAX_IMAGE_BYTES = 5 * 1024 * 1024
 
 

@@ -5,10 +5,10 @@ from datetime import date
 from services.orchestrator.state import ConversationState
 from shared.i18n.bengali_calendar import GREGORIAN_MONTHS_BENGALI, format_bangla_calendar_label
 
-# NOTE: this used to be a locally duplicated dict, identical to the one in
-# pdf_service/generator.py. Both now import from
-# shared/i18n/bengali_calendar.py — kept as a local alias so nothing else
-# importing BENGALI_MONTHS from this module breaks.
+
+
+
+
 BENGALI_MONTHS = GREGORIAN_MONTHS_BENGALI
 
 

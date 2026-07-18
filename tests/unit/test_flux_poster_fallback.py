@@ -1,4 +1,5 @@
-import sys, os
+import sys
+import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 import pytest
@@ -14,7 +15,7 @@ class _FakeSettingsNoFlux:
 class _FakeSettingsWithFluxKeyButBadUrl:
     bengali_font_path = "/definitely/does/not/exist.ttf"
     flux_api_key = "test-key"
-    flux_base_url = "http://127.0.0.1:1"  # nothing listens here — forces a fast failure
+    flux_base_url = "http://127.0.0.1:1"
 
 
 @pytest.mark.asyncio
@@ -24,7 +25,7 @@ async def test_generate_poster_falls_back_to_pillow_tier_without_flux_key(monkey
         b"not-a-real-image", product_name="test", ad_caption="test", price_min=1, price_max=2
     )
     assert tier == "pillow"
-    assert image_bytes is None  # no font available either, degrades all the way to None — never crashes
+    assert image_bytes is None
 
 
 @pytest.mark.asyncio
@@ -34,9 +35,9 @@ async def test_generate_poster_falls_back_to_pillow_tier_on_flux_failure(monkeyp
     async def _fake_flux_get_settings():
         return _FakeSettingsWithFluxKeyButBadUrl()
 
-    # flux_poster_client.generate_poster_image reads settings independently —
-    # patch it there too so the unreachable URL causes a fast, real failure
-    # that exercises the fall-through path rather than hanging on DNS/connect.
+
+
+
     import services.vision_service.flux_poster_client as flux_client
     monkeypatch.setattr(flux_client, "get_settings", lambda: _FakeSettingsWithFluxKeyButBadUrl())
 
@@ -44,4 +45,4 @@ async def test_generate_poster_falls_back_to_pillow_tier_on_flux_failure(monkeyp
         b"not-a-real-image", product_name="test", ad_caption="test", price_min=1, price_max=2
     )
     assert tier == "pillow"
-    assert image_bytes is None  # Flux fails -> Pillow fallback -> no font -> None, never crashes
+    assert image_bytes is None

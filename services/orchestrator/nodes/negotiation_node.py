@@ -17,10 +17,10 @@ from shared.db.models import SellerProfile
 
 MAX_NEGOTIATION_TURNS = 4
 
-# Same domain-reasonable ceiling as ledger_confirm_node.MAX_REASONABLE_AMOUNT —
-# anything above this for a single SHG micro-business item is almost
-# certainly noise (or an attempt to break the floor comparison via a huge
-# digit string that parses to `inf`; see red-team-agents-v2.md HIGH-1).
+
+
+
+
 MAX_REASONABLE_OFFER = 500_000
 MAX_REASON_CHARS = 200
 
@@ -32,12 +32,12 @@ _AMOUNT_RE = re.compile(r"(₹\s?[০-৯0-9,]+|[০-৯0-9,]+\s?টাকা)")
 _DIGIT_RE = re.compile(r"[০-৯0-9,]+")
 _BENGALI_DIGITS = str.maketrans("০১২৩৪৫৬৭৮৯", "0123456789")
 
-# Reused from grounding_verifier.py's word-form-number handling: a reason
-# fragment mentioning "পঞ্চাশ" (fifty) contains no digit *characters* at
-# all, so a plain isdigit() scan misses it entirely — this was a real gap
-# caught while re-testing this file's own fix (see
-# docs/red-team-agents-v2.md CRIT-1). Any of these words appearing in a
-# reason fragment is treated the same as a digit: discard the fragment.
+
+
+
+
+
+
 _NUMBER_WORDS = {
     "শূন্য", "এক", "দুই", "তিন", "চার", "পাঁচ", "ছয়", "সাত", "আট", "নয়",
     "দশ", "এগারো", "বারো", "তেরো", "চৌদ্দ", "পনেরো", "ষোল", "সতেরো",
@@ -47,25 +47,25 @@ _NUMBER_WORDS = {
 }
 _NUMBER_WORD_RE = re.compile("|".join(re.escape(w) for w in _NUMBER_WORDS))
 
-# NOTE ON DESIGN — read before touching this file:
-#
-# The LLM (Sarvam-105B) is NEVER asked to write a price, in either the
-# accept or counter-offer flow. It is only ever asked for a short,
-# digit-free justification sentence, and _mentions_a_number() discards that
-# entire fragment outright if it contains so much as one digit. The actual
-# quoted number is always interpolated by code, from a value that was
-# already computed deterministically (never below the seller's floor by
-# construction — see _compute_counter_offer). This is a structural
-# guarantee, not a pattern-matching filter.
-#
-# An earlier version of this file tried to catch a bad LLM-generated price
-# by scanning its output for ₹/টাকা patterns after the fact. That approach
-# was a blocklist and was proven to miss bare digits with no currency
-# marker, the Bengali Taka sign (৳, distinct from ₹), romanized "taka", and
-# spelled-out number words — see docs/red-team-agents-v2.md CRIT-1 for the
-# reproduction. Do not reintroduce "let the LLM write the number, then try
-# to catch it if it's wrong" — the number must never originate from the LLM
-# in the first place.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ACCEPT_REASON_SYSTEM = (
     "তুমি একজন বন্ধুত্বপূর্ণ বিক্রয় সহায়ক। একটি লেনদেন সম্পন্ন হয়েছে।\n"
@@ -100,7 +100,7 @@ def _extract_amount(text: str) -> float | None:
         value = float(digits.group(0).translate(_BENGALI_DIGITS).replace(",", ""))
     except (ValueError, OverflowError):
         return None
-    if value != value or value in (float("inf"), float("-inf")):  # NaN / inf guard
+    if value != value or value in (float("inf"), float("-inf")):
         return None
     if value < 0 or value > MAX_REASONABLE_OFFER:
         return None
@@ -209,8 +209,8 @@ async def _continue_negotiation(state: ConversationState, pending: dict, text: s
     turns = pending.get("turns", 0) + 1
 
     if text.lower() in AFFIRMATIVE and pending.get("last_counter"):
-        # Buyer accepted our previous counter-offer. Fully deterministic
-        # finalize — no LLM call for the number, optional digit-free thank-you.
+
+
         amount = pending["last_counter"]
         reason = await _generate_reason(ACCEPT_REASON_SYSTEM, "লেনদেন সম্পন্ন হয়েছে।")
         body = f"✅ ঠিক আছে, ₹{amount:.0f} তে রাজি!" + (f" {reason}" if reason else "")
@@ -253,7 +253,7 @@ async def _accept(offer: float) -> dict:
     _evaluate_offer before this is ever called. The number in the outbound
     message is always `offer`, interpolated by code — the LLM only ever
     supplies an optional, digit-free thank-you sentence."""
-    reason = await _generate_reason(ACCEPT_REASON_SYSTEM, f"সম্মত দাম চূড়ান্ত হয়েছে।")
+    reason = await _generate_reason(ACCEPT_REASON_SYSTEM, "সম্মত দাম চূড়ান্ত হয়েছে।")
     body = f"✅ ঠিক আছে, ₹{offer:.0f} তে রাজি! ধন্যবাদ।" if not reason else f"✅ ঠিক আছে, ₹{offer:.0f} তে রাজি! {reason}"
     return {
         "pending_negotiation": None,

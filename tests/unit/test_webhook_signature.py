@@ -1,4 +1,5 @@
-import hmac, hashlib
+import hmac
+import hashlib
 
 
 def test_hmac_signature_matches_expected_scheme():

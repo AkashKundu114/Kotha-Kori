@@ -2,6 +2,8 @@ FROM python:3.11-slim
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+COPY assets/ assets/
+COPY migrations/ migrations/
 COPY shared/ shared/
 COPY services/ services/
 RUN useradd -m -u 1000 appuser

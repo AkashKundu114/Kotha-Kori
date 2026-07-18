@@ -28,7 +28,7 @@ def gregorian_to_bangla_approx(g_date: date) -> tuple[str, int, int]:
         new_year = this_years_new_year
         bangla_year = year - _BANGLA_ERA_OFFSET
 
-    day_offset = (g_date - new_year).days  
+    day_offset = (g_date - new_year).days
 
     next_new_year = date(new_year.year + 1, _POYLA_BOISHAKH_MONTH, _POYLA_BOISHAKH_DAY)
     total_days_this_bangla_year = (next_new_year - new_year).days

@@ -23,7 +23,7 @@ def _looks_code_mixed(text: str) -> bool:
     latin = len(_LATIN_LETTER_RE.findall(text))
     bengali = len(_BENGALI_LETTER_RE.findall(text))
     total_letters = latin + bengali
-    if total_letters < 6:  
+    if total_letters < 6:
         return False
     return (latin / total_letters) >= _BANGLISH_LATIN_RATIO_THRESHOLD
 

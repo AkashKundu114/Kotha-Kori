@@ -1,4 +1,5 @@
-import sys, os
+import sys
+import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 from services.orchestrator.nodes.negotiation_node import (
@@ -9,7 +10,7 @@ from services.orchestrator.nodes.negotiation_node import (
 )
 
 
-# --- _extract_amount: normal cases -----------------------------------------
+
 
 def test_extract_amount_digit_form():
     assert _extract_amount("কাস্টমার ৮০ টাকা বলেছে") == 80.0
@@ -27,10 +28,10 @@ def test_extract_amount_none_when_no_number():
     assert _extract_amount("সে রাজি না") is None
 
 
-# --- _extract_amount: HIGH-1 regression (unbounded input -> inf) -----------
-# docs/red-team-agents-v2.md HIGH-1: a long digit string used to parse to
-# float('inf'), which unconditionally satisfied `offer >= floor` for ANY
-# floor. These lock in the fix.
+
+
+
+
 
 def test_extract_amount_rejects_very_long_digit_string():
     attack = "৯" * 400 + " টাকা দিচ্ছি"
@@ -45,11 +46,11 @@ def test_extract_amount_accepts_value_at_ceiling():
     assert _extract_amount(f"{int(MAX_REASONABLE_OFFER)} টাকা দিচ্ছি") == MAX_REASONABLE_OFFER
 
 
-# --- _mentions_a_number: CRIT-1 regression suite ----------------------------
-# docs/red-team-agents-v2.md CRIT-1: the original amount-scanning safety net
-# was a bypassable blocklist. These are the exact phrasings that bypassed it,
-# now checked against the replacement (_mentions_a_number, used to gate
-# whether an LLM-generated "reason" fragment is allowed through at all).
+
+
+
+
+
 
 def test_mentions_a_number_catches_bare_digit_no_currency_marker():
     assert _mentions_a_number("ঠিক আছে, ৫০ হলে চলবে, রাজি!") is True
@@ -64,8 +65,8 @@ def test_mentions_a_number_catches_romanized_taka():
 
 
 def test_mentions_a_number_catches_spelled_out_number_word():
-    # This specific case slipped through an earlier version of this fix
-    # that only checked digit characters — "পঞ্চাশ" (fifty) has none.
+
+
     assert _mentions_a_number("পঞ্চাশ টাকা হলে রাজি") is True
 
 
@@ -82,7 +83,7 @@ def test_mentions_a_number_false_for_genuinely_number_free_text():
     assert _mentions_a_number(clean) is False
 
 
-# --- _compute_counter_offer: never below floor ------------------------------
+
 
 def test_counter_offer_first_turn_holds_at_floor():
     assert _compute_counter_offer(floor=200, offer=100, turns=1) == 200.0

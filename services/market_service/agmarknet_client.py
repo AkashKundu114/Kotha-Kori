@@ -4,10 +4,10 @@ import httpx
 
 from shared.config.settings import get_settings
 
-# NOTE: exact resource ID / response schema not verified against the live
-# data.gov.in API — verify before relying on this in production. Fails
-# gracefully (returns []) on any error, which is by design: this is an
-# optional enrichment signal, never a hard dependency for Feature 8.
+
+
+
+
 _AGMARKNET_RESOURCE_URL = "https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070"
 
 

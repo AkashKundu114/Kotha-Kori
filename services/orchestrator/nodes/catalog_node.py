@@ -18,13 +18,13 @@ logger = logging.getLogger("catalog_node")
 
 MAX_IMAGE_BYTES = 5 * 1024 * 1024
 
-# Bridge between the vision model's coarse category (textile/food/
-# handicraft/agriculture/other) and the freeform Bengali category strings
-# ledger entries use, for the market-trend note in _market_note() below.
-# Generated from shared/catalog/local_products.py — the single source of
-# truth for this codebase's product taxonomy — instead of a separately
-# hand-maintained dict that used to cover only 4 categories with 2-4
-# keywords each.
+
+
+
+
+
+
+
 _CATEGORY_KEYWORDS = category_keywords()
 
 
@@ -61,9 +61,9 @@ async def catalog_node(state: ConversationState) -> dict:
         }
 
     try:
-        # Vision understanding: Sarvam Vision -> local Ollama vision fallback
-        # (see model_router.route_vision_completion). Caption generation is
-        # routed through the Sarvam text cascade inside generate_captions.
+
+
+
         product_info = await analyze_product_image(raw_bytes)
         captions, (price_min, price_max) = await generate_captions(product_info, shg_name=_shg_name(state))
     except ModelUnavailableError:
@@ -170,7 +170,7 @@ async def _market_note(state: ConversationState, vision_category: str) -> str | 
     try:
         rows = await block_sales_trend(block)
     except Exception:
-        return None  # optional enrichment — never block catalog delivery on this
+        return None
 
     by_category: dict[str, list[dict]] = {}
     for row in rows:
@@ -226,4 +226,4 @@ async def _record_creation(state, raw_key, processed_key, product_info, captions
             )
             await db.commit()
     except Exception:
-        pass  # the WhatsApp reply already went out; a failed audit-row write shouldn't retry the whole turn
+        pass

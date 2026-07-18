@@ -11,10 +11,10 @@ from shared.config.settings import get_settings
 
 logger = logging.getLogger("flux_poster_client")
 
-_REQUEST_TIMEOUT = 15.0          
+_REQUEST_TIMEOUT = 15.0
 _POLL_INTERVAL_SECONDS = 1.5
 _MAX_POLL_ATTEMPTS = 20
-_OVERALL_BUDGET_SECONDS = 60.0   
+_OVERALL_BUDGET_SECONDS = 60.0
 
 _MAX_RESULT_IMAGE_BYTES = 8 * 1024 * 1024
 

@@ -1,8 +1,13 @@
-from fastapi import FastAPI, Request, BackgroundTasks, HTTPException, Response
-from fastapi.middleware.cors import CORSMiddleware
-import hmac, hashlib, json, time, uuid, logging
+import hashlib
+import hmac
+import json
+import logging
+import time
+import uuid
 
 import redis.asyncio as aioredis
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Request, Response
+from fastapi.middleware.cors import CORSMiddleware
 
 from shared.config.settings import get_settings
 from shared.storage.s3_client import get_s3_client
@@ -37,6 +42,20 @@ async def health():
     return {"status": "ok"}
 
 
+@app.get("/")
+async def public_status():
+    s = get_settings()
+    phone = "".join(ch for ch in s.wa_public_phone_number if ch.isdigit())
+    whatsapp_link = f"https://wa.me/{phone}" if phone else None
+    return {
+        "service": "AI-SATHI",
+        "status": "ok",
+        "domain": s.public_base_url,
+        "whatsapp_link": whatsapp_link,
+        "whatsapp_webhook": f"{s.public_base_url.rstrip('/')}/webhook/whatsapp",
+    }
+
+
 @app.get("/webhook/whatsapp")
 async def verify_webhook(request: Request):
     s = get_settings()
@@ -60,7 +79,7 @@ async def receive_message(request: Request, background_tasks: BackgroundTasks):
             "sha256=" + hmac.new(s.wa_app_secret.encode(), body, hashlib.sha256).hexdigest()
         )
         if not hmac.compare_digest(sig, expected):
-            logger.warning("webhook signature mismatch — dropping payload")
+            logger.warning("webhook signature mismatch")
             raise HTTPException(status_code=403)
 
         payload = json.loads(body)
@@ -77,13 +96,13 @@ async def receive_message(request: Request, background_tasks: BackgroundTasks):
             f"dedup:{msg.message_id}", "1", ex=DEDUP_TTL_SECONDS, nx=True
         )
         if not was_new:
-            return {"status": "ok"} 
+            return {"status": "ok"}
 
         rate_key = f"ratelimit:{msg.from_number}:{int(time.time() // 3600)}"
         count = await redis.incr(rate_key)
         await redis.expire(rate_key, 3600)
         if count > s.max_messages_per_hour:
-            return {"status": "ok"} 
+            return {"status": "ok"}
 
         background_tasks.add_task(_dispatch_to_orchestrator, msg)
         return {"status": "ok"}
