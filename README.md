@@ -10,7 +10,7 @@ WhatsApp webhook: `https://aisathi.app/webhook/whatsapp`
 
 DigitalOcean deployment guide: [docs/digitalocean-deploy.md](docs/digitalocean-deploy.md)
 
-Messaging runs exclusively on the **official Meta WhatsApp Cloud API** — no
+Messaging runs exclusively on the **official Meta WhatsApp Cloud API** - no
 Twilio, no Baileys, no other third-party messaging provider.
 
 **AI vendors, and why each one:**
