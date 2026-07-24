@@ -103,8 +103,6 @@ _compiled_graph = None
 
 
 async def get_compiled_graph():
-    """Compiled once, reused — recompiling per-turn would reopen a Postgres
-    checkpointer connection on every message."""
     global _compiled_graph
     if _compiled_graph is not None:
         return _compiled_graph

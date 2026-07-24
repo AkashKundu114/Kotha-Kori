@@ -87,7 +87,7 @@ async def route_completion(
             raise ModelUnavailableError(str(exc)) from exc
 
     raise ModelUnavailableError(
-        "Sarvam unavailable/unconfigured and USE_LOCAL_MODELS is false — no fallback tier configured"
+        "Sarvam unavailable/unconfigured and USE_LOCAL_MODELS is false - no fallback tier configured"
     )
 
 

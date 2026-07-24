@@ -26,19 +26,6 @@ NO_PROFILE_MSG = (
 
 
 def _recommend(cost: float, margin: float, min_price: float | None, market_avg: float | None) -> dict:
-    """Deterministic — never LLM-generated. cost/margin/min_price come from
-    the seller's own stated numbers; market_avg is an optional anchor, never
-    a substitute for the seller's own floor. Mirrors the pattern in
-    market_service/aggregator.py::classify_trend — numbers first, LLM only
-    for phrasing the result afterward.
-
-    Inputs are clamped to non-negative before use (red-team-agents-v2.md
-    MED-1): a negative or missing production_cost with no minimum_price set
-    would otherwise collapse the floor to <= 0, which negotiation_node would
-    then treat as "accept any non-negative offer." Every caller of this
-    function must additionally check `floor_price > 0` before proceeding —
-    this function itself only guarantees non-negativity, not "usable."
-    """
     cost = max(0.0, float(cost or 0))
     margin = max(0.0, float(margin or 0))
     min_price = max(0.0, float(min_price)) if min_price else None

@@ -17,10 +17,6 @@ from shared.db.models import SellerProfile
 
 MAX_NEGOTIATION_TURNS = 4
 
-
-
-
-
 MAX_REASONABLE_OFFER = 500_000
 MAX_REASON_CHARS = 200
 
@@ -32,12 +28,6 @@ _AMOUNT_RE = re.compile(r"(₹\s?[০-৯0-9,]+|[০-৯0-9,]+\s?টাকা)")
 _DIGIT_RE = re.compile(r"[০-৯0-9,]+")
 _BENGALI_DIGITS = str.maketrans("০১২৩৪৫৬৭৮৯", "0123456789")
 
-
-
-
-
-
-
 _NUMBER_WORDS = {
     "শূন্য", "এক", "দুই", "তিন", "চার", "পাঁচ", "ছয়", "সাত", "আট", "নয়",
     "দশ", "এগারো", "বারো", "তেরো", "চৌদ্দ", "পনেরো", "ষোল", "সতেরো",
@@ -46,26 +36,6 @@ _NUMBER_WORDS = {
     "একশো", "দুইশো", "তিনশো", "চারশো", "পাঁচশো", "হাজার", "লাখ",
 }
 _NUMBER_WORD_RE = re.compile("|".join(re.escape(w) for w in _NUMBER_WORDS))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 ACCEPT_REASON_SYSTEM = (
     "তুমি একজন বন্ধুত্বপূর্ণ বিক্রয় সহায়ক। একটি লেনদেন সম্পন্ন হয়েছে।\n"
@@ -82,14 +52,7 @@ COUNTER_REASON_SYSTEM = (
     "পাল্টা দামটি অন্য কোথাও যোগ করা হবে, তোমাকে সেটা লিখতে হবে না।"
 )
 
-
 def _extract_amount(text: str) -> float | None:
-    """Deterministic regex extraction of the customer's proposed amount —
-    the same pattern as grounding_verifier.py's amount matching. Validates
-    finite + in-range before returning, so a very long digit string can't
-    parse to `inf`/overflow and silently satisfy `offer >= floor` for any
-    floor (see red-team-agents-v2.md HIGH-1 — this was a real, reproduced
-    bug in an earlier version of this file)."""
     match = _AMOUNT_RE.search(text)
     if not match:
         return None
@@ -108,36 +71,18 @@ def _extract_amount(text: str) -> float | None:
 
 
 def _mentions_a_number(text: str) -> bool:
-    """The LLM's reason fragment must never contain a price — see the
-    module docstring above. A legitimate justification ('ভালো মানের
-    কারণে') has no reason to contain a digit OR a spelled-out number word,
-    so this filter can be maximally aggressive with zero false-positive
-    cost: discarding an occasional harmless fragment is strictly
-    preferable to ever letting a number the model invented reach the
-    customer. Checks both digit characters (Bengali or Latin) and the
-    spelled-out Bengali number words in _NUMBER_WORDS — a digit-only check
-    misses "পঞ্চাশ" (fifty) entirely, since it contains no digit glyphs at
-    all (see docs/red-team-agents-v2.md CRIT-1)."""
     if any(ch.isdigit() or "০" <= ch <= "৯" for ch in text):
         return True
     return bool(_NUMBER_WORD_RE.search(text))
 
 
 def _compute_counter_offer(floor: float, offer: float, turns: int) -> float:
-    """Pure, deterministic, unit-testable. Never returns below floor —
-    guaranteed by max(), not by convention. First turn holds firm at the
-    floor itself; later turns split the gap between floor and the
-    customer's latest offer, still never below floor."""
     if turns <= 1:
         return round(floor, 2)
     return round(max(floor, (floor + offer) / 2), 2)
 
 
 async def _generate_reason(system: str, prompt: str) -> str:
-    """Shared helper for both the accept and counter flows. Returns "" (not
-    an error) on any failure or policy violation — an empty reason just
-    means the outbound message has no extra sentence, never a missing or
-    wrong price, since the price is never sourced from here."""
     try:
         result = await route_completion(
             system=system, prompt=prompt, criticality=TaskCriticality.ROUTINE,
@@ -162,10 +107,6 @@ async def negotiation_node(state: ConversationState) -> dict:
 
 
 async def _load_floor(state: ConversationState) -> tuple[float, str] | None:
-    """Returns None if no valid, positive floor can be established — this
-    includes the MED-1 data-integrity case (bad/missing production_cost
-    collapsing the floor to <= 0), which is treated identically to "no
-    profile set up yet" rather than silently negotiating from a ₹0 floor."""
     user_id = state.get("user_id")
     if not user_id:
         return None
@@ -249,10 +190,6 @@ async def _evaluate_offer(floor: float, product_type: str, offer: float, turns: 
 
 
 async def _accept(offer: float) -> dict:
-    """Deterministic outcome: `offer >= floor` is already verified in
-    _evaluate_offer before this is ever called. The number in the outbound
-    message is always `offer`, interpolated by code — the LLM only ever
-    supplies an optional, digit-free thank-you sentence."""
     reason = await _generate_reason(ACCEPT_REASON_SYSTEM, "সম্মত দাম চূড়ান্ত হয়েছে।")
     body = f"✅ ঠিক আছে, ₹{offer:.0f} তে রাজি! ধন্যবাদ।" if not reason else f"✅ ঠিক আছে, ₹{offer:.0f} তে রাজি! {reason}"
     return {
@@ -264,11 +201,6 @@ async def _accept(offer: float) -> dict:
 
 
 async def _counter(floor: float, product_type: str, offer: float, turns: int) -> dict:
-    """Offer is below floor. counter_offer is computed by
-    _compute_counter_offer — a pure function that structurally cannot
-    return below floor. The LLM never sees this number as something it
-    should write; it only ever supplies an optional, digit-free reason,
-    which is validated by _generate_reason before use."""
     counter_offer = _compute_counter_offer(floor, offer, turns)
 
     reason = await _generate_reason(

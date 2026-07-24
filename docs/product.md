@@ -1,4 +1,3 @@
-# Kotha-Kori (কথা-কড়ি)
 ## Product Requirements Document (PRD)
 **Version:** 1.0 | **Status:** Approved for Development | **Date:** June 2026
 
